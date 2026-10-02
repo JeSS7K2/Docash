@@ -1,0 +1,11 @@
+appId: com.docash
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: 'Balance total'
+    timeout: 60000
+- assertVisible: 'Add expense'
+- assertVisible: 'Add income'
+- assertVisible: 'Day'
+- assertVisible: 'Month'

@@ -1,0 +1,76 @@
+import { StyleSheet } from 'react-native';
+import { radius, spacing, type, type Palette } from '../../theme';
+
+/** Estilos comunes de los sheets de opciones (settings/budgets/recurring). */
+export const makeSheetUi = (c: Palette) =>
+  StyleSheet.create({
+    content: {
+      backgroundColor: c.paper,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl,
+      maxHeight: '90%',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      marginBottom: spacing.md,
+    },
+    title: { fontSize: 18, fontWeight: '800', color: c.ink },
+    iconButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    body: { paddingHorizontal: spacing.xl },
+    section: {
+      fontSize: type.metaSize,
+      color: c.muted,
+      fontWeight: '700',
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+      textTransform: 'uppercase',
+    },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    chip: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radius.action,
+      backgroundColor: c.faint,
+      minHeight: 40,
+      justifyContent: 'center',
+    },
+    chipActive: { backgroundColor: c.ink },
+    chipText: { fontSize: type.bodySize, color: c.ink },
+    chipTextActive: { color: c.paper },
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: radius.action,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      color: c.ink,
+      minHeight: 44,
+    },
+    actionButton: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radius.action,
+      backgroundColor: c.faint,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionButtonText: { color: c.ink, fontWeight: '600', fontSize: type.bodySize },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.md },
+    rowTitle: { fontSize: type.bodySize, color: c.ink, fontWeight: '600' },
+    rowMeta: { fontSize: type.metaSize, color: c.muted, marginTop: spacing.xs },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 44,
+      marginTop: spacing.md,
+    },
+    toggleLabel: { fontSize: type.bodySize, color: c.ink },
+    spacer: { flex: 1 },
+  });

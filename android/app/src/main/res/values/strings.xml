@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Docash</string>
+    <string name="widget_docash_description">Balance total de Docash</string>
+</resources>

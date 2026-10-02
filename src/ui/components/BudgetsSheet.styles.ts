@@ -1,0 +1,78 @@
+import { StyleSheet } from 'react-native';
+import { radius, spacing, type Palette } from '../../theme';
+
+export const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    barTrack: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: c.track,
+      marginTop: spacing.md,
+      overflow: 'hidden',
+    },
+    barFill: { height: 6, borderRadius: 3, backgroundColor: c.expense },
+    barFillOk: { backgroundColor: c.income },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    amountInput: {
+      width: 96,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: radius.action,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: c.ink,
+      textAlign: 'right',
+      minHeight: 40,
+    },
+    periodRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      alignItems: 'center',
+    },
+    periodChip: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      minHeight: 32,
+    },
+    daysInput: {
+      width: 64,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: radius.action,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: c.ink,
+      textAlign: 'center',
+      minHeight: 36,
+    },
+    yearInput: {
+      width: 88,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: radius.action,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: c.ink,
+      textAlign: 'center',
+      minHeight: 36,
+    },
+    metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
+    configBody: { paddingHorizontal: spacing.xl },
+    rowButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    chevron: { marginLeft: spacing.sm },
+    saveButton: { marginTop: spacing.lg },
+    deleteButton: { marginTop: spacing.md },
+    dateButton: { justifyContent: 'center', marginTop: spacing.sm },
+  });

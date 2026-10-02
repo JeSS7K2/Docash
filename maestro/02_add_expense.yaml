@@ -1,0 +1,16 @@
+appId: com.docash
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: 'Balance total'
+    timeout: 60000
+- tapOn: 'Add expense'
+- assertVisible: 'Note (optional)'
+- tapOn: '1'
+- tapOn: '0'
+- tapOn: '0'
+- assertVisible: '\$100\.00'
+- tapOn: 'Food'
+- assertVisible: '-\$100\.00'
+- assertVisible: 'Food'
