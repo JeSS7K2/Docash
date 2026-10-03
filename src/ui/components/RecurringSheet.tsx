@@ -31,13 +31,14 @@ interface RecurringSheetProps {
   isOpen: boolean;
   onClose: () => void;
   db: Database;
+  presentation?: 'sheet' | 'page';
 }
 
 type Phase = 'list' | 'kind' | 'form';
 
 const FREQUENCIES: Frequency[] = ['daily', 'weekly', 'monthly'];
 
-export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetProps) {
+export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sheet' }: RecurringSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -170,13 +171,19 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
       onClose={onClose}
       title={t('recurring.title')}
       accent={palette.recurring}
-      accentSoft={palette.recurringSoft}>
+      accentSoft={palette.recurringSoft}
+      presentation={presentation}>
       <Box style={ui.body}>
         {phase === 'list' ? (
           <>
-            {rules.length === 0 ? <Text style={ui.rowMeta}>{t('recurring.empty')}</Text> : null}
+            {rules.length === 0 ? (
+              <Box style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>{t('recurring.emptyTitle')}</Text>
+                <Text style={styles.emptyBody}>{t('recurring.emptyBody')}</Text>
+              </Box>
+            ) : null}
             {rules.map(rule => (
-              <Box key={rule.id} style={ui.row}>
+              <Box key={rule.id} style={[ui.row, styles.ruleCard]}>
                 <CategoryIcon
                   id={rule.categoryId}
                   icon={cats.find(category => category.id === rule.categoryId)?.icon}
@@ -203,7 +210,7 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
               testID="recurring-add"
               style={[ui.actionButton, styles.addButton]}
               onPress={() => setPhase('kind')}>
-              <Text style={ui.actionButtonText}>{t('recurring.add')}</Text>
+              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('recurring.add')}</Text>
             </Pressable>
           </>
         ) : null}
@@ -228,7 +235,7 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
               testID="recurring-back"
               style={[ui.actionButton, styles.addButton]}
               onPress={() => setPhase('list')}>
-              <Text style={ui.actionButtonText}>{t('common.back')}</Text>
+              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('common.back')}</Text>
             </Pressable>
           </>
         ) : null}
@@ -332,7 +339,7 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
               testID="recurring-save"
               style={[ui.actionButton, styles.addButton]}
               onPress={add}>
-              <Text style={ui.actionButtonText}>{t('common.save')}</Text>
+              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('common.save')}</Text>
             </Pressable>
           </>
         ) : null}

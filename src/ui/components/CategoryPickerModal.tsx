@@ -16,6 +16,7 @@ interface CategoryPickerModalProps {
   kind: CategoryKind;
   onSelect: (categoryId: string) => void;
   onCreate: (name: string, icon: FeatherName) => Promise<boolean>;
+  presentation?: 'sheet' | 'page';
 }
 
 export default function CategoryPickerModal({
@@ -26,6 +27,7 @@ export default function CategoryPickerModal({
   kind,
   onSelect,
   onCreate,
+  presentation = 'sheet',
 }: CategoryPickerModalProps) {
   const palette = usePalette();
   const { t } = useTranslation();
@@ -74,6 +76,7 @@ export default function CategoryPickerModal({
       }
       accent={accent}
       accentSoft={accentSoft}
+      presentation={presentation}
       fixedContent={
         !creating ? (
           <View style={styles.searchWrap}>

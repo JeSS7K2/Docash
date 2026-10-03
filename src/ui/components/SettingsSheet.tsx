@@ -28,18 +28,18 @@ interface SettingsSheetProps {
   isOpen: boolean;
   onClose: () => void;
   db: Database;
-  onOpenBudgets: () => void;
-  onOpenRecurring: () => void;
   onOpenNotifications: () => void;
+  presentation?: 'sheet' | 'page';
 }
+
+type SettingsPage = 'main' | 'appearance' | 'currency' | 'privacy' | 'backup' | 'import';
 
 export default function SettingsSheet({
   isOpen,
   onClose,
   db,
-  onOpenBudgets,
-  onOpenRecurring,
   onOpenNotifications,
+  presentation = 'sheet',
 }: SettingsSheetProps) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -49,10 +49,12 @@ export default function SettingsSheet({
   const [importText, setImportText] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [pinMode, setPinMode] = useState<PinMode | null>(null);
+  const [page, setPage] = useState<SettingsPage>('main');
 
   useEffect(() => {
     if (isOpen) {
       isBiometricAvailable().then(setBioAvailable);
+      setPage('main');
     }
   }, [isOpen]);
 
@@ -103,6 +105,7 @@ export default function SettingsSheet({
     try {
       const counts = await importData(db, importText);
       setImportText(null);
+      setPage('backup');
       playSound('success');
       showToast(`${t('settings.importDone')}: ${counts.transactions}`, 'success');
     } catch (error) {
@@ -114,84 +117,144 @@ export default function SettingsSheet({
   const themes: ThemePreference[] = ['light', 'dark', 'system'];
   const locales: Locale[] = ['en', 'es'];
   const currencies: Currency[] = ['USD', 'EUR'];
+  const pageTitle =
+    page === 'main' ? t('settings.title')
+      : page === 'appearance' ? t('settings.appearance')
+        : page === 'currency' ? t('settings.currency')
+          : page === 'privacy' ? t('security.title')
+            : page === 'backup' ? t('settings.backup')
+              : t('settings.import');
+  const back = page === 'main' ? onClose : () => setPage('main');
 
   return (
     <SheetScaffold
       isOpen={isOpen}
-      onClose={onClose}
-      title={t('settings.title')}
+      onClose={back}
+      title={pageTitle}
       accent={palette.primary}
       accentSoft={palette.primarySoft}
-      closeTestID="settings-close">
-      <Box style={styles.body}>
-        <Text style={styles.section}>{t('settings.profile')}</Text>
-        <TextInput
-          testID="settings-name"
-          style={styles.input}
-          value={s.userName}
-          onChangeText={s.setUserName}
-          placeholder={t('settings.name')}
-          placeholderTextColor={palette.muted}
-          maxLength={40}
-        />
+      closeTestID="settings-close"
+      presentation={presentation}>
+      {page === 'main' ? (
+        <Box style={styles.body}>
+          <Box style={styles.callout}>
+            <Text style={styles.calloutTitle}>{t('settings.deviceOnly')}</Text>
+            <Text style={styles.calloutBody}>{t('settings.deviceOnlyBody')}</Text>
+          </Box>
+          <Text style={styles.section}>{t('settings.personalization')}</Text>
+          <Pressable style={styles.linkCard} onPress={() => setPage('appearance')}>
+            <Box style={styles.linkCopy}>
+              <Text style={styles.linkTitle}>{t('settings.appearance')}</Text>
+              <Text style={styles.linkBody}>{t('settings.appearanceSummary')}</Text>
+            </Box>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable style={styles.linkCard} onPress={() => setPage('currency')}>
+            <Box style={styles.linkCopy}>
+              <Text style={styles.linkTitle}>{t('settings.currency')}</Text>
+              <Text style={styles.linkBody}>{t('settings.currencySummary')}</Text>
+            </Box>
+            <Text style={styles.linkValue}>{s.currency} ›</Text>
+          </Pressable>
+          <Box style={styles.nameCard}>
+            <Text style={styles.linkTitle}>{t('settings.name')}</Text>
+            <Text style={styles.linkBody}>{t('settings.nameSummary')}</Text>
+            <TextInput
+              testID="settings-name"
+              style={styles.input}
+              value={s.userName}
+              onChangeText={s.setUserName}
+              placeholder={t('settings.name')}
+              placeholderTextColor={palette.muted}
+              maxLength={40}
+            />
+          </Box>
 
-        <Text style={styles.section}>{t('settings.appearance')}</Text>
-        <Box style={styles.chips}>
-          {themes.map(theme => {
-            const active = s.theme === theme;
-            return (
-              <Pressable
-                key={theme}
-                testID={`theme-${theme}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => s.setTheme(theme)}>
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {t(`settings.theme.${theme}` as 'settings.theme.light')}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <Text style={styles.section}>{t('settings.privacyData')}</Text>
+          <Pressable style={styles.linkCard} onPress={() => setPage('privacy')}>
+            <Box style={styles.linkCopy}>
+              <Text style={styles.linkTitle}>{t('security.title')}</Text>
+              <Text style={styles.linkBody}>{t('settings.securitySummary')}</Text>
+            </Box>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable style={styles.linkCard} onPress={onOpenNotifications}>
+            <Box style={styles.linkCopy}>
+              <Text style={styles.linkTitle}>{t('notif.title')}</Text>
+              <Text style={styles.linkBody}>{t('settings.notificationsSummary')}</Text>
+            </Box>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable style={styles.linkCard} onPress={() => setPage('backup')}>
+            <Box style={styles.linkCopy}>
+              <Text style={styles.linkTitle}>{t('settings.backup')}</Text>
+              <Text style={styles.linkBody}>{t('settings.backupSummary')}</Text>
+            </Box>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </Box>
+      ) : null}
 
-        <Text style={styles.section}>{t('settings.language')}</Text>
-        <Box style={styles.chips}>
-          {locales.map(loc => {
-            const active = s.locale === loc;
-            return (
-              <Pressable
-                key={loc}
-                testID={`locale-${loc}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => s.setLocale(loc)}>
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {loc === 'en' ? 'English' : 'Español'}
-                </Text>
-              </Pressable>
-            );
-          })}
+      {page === 'appearance' ? (
+        <Box style={styles.body}>
+          <Text style={styles.section}>{t('settings.theme')}</Text>
+          <Box style={styles.segmentRow}>
+            {themes.map(theme => {
+              const active = s.theme === theme;
+              return (
+                <Pressable
+                  key={theme}
+                  testID={`theme-${theme}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.segment, active && styles.segmentActive]}
+                  onPress={() => s.setTheme(theme)}>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {t(`settings.theme.${theme}` as 'settings.theme.light')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Box>
+          <Text style={styles.section}>{t('settings.language')}</Text>
+          <Box style={styles.segmentRow}>
+            {locales.map(loc => {
+              const active = s.locale === loc;
+              return (
+                <Pressable
+                  key={loc}
+                  testID={`locale-${loc}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.segment, active && styles.segmentActive]}
+                  onPress={() => s.setLocale(loc)}>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {loc === 'en' ? 'English' : 'Español'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Box>
+          <Text style={styles.section}>{t('settings.sounds')}</Text>
+          <Box style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{t('settings.sounds')}</Text>
+            <Toggle testID="sound-toggle" value={s.soundEnabled} onValueChange={s.setSoundEnabled} />
+          </Box>
+          <Box style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{t('settings.soundKeypad')}</Text>
+            <Toggle
+              testID="sound-keypad-toggle"
+              value={s.soundKeypad}
+              disabled={!s.soundEnabled}
+              onValueChange={s.setSoundKeypad}
+            />
+          </Box>
         </Box>
+      ) : null}
 
-        <Text style={styles.section}>{t('settings.sounds')}</Text>
-        <Box style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>{t('settings.sounds')}</Text>
-          <Toggle testID="sound-toggle" value={s.soundEnabled} onValueChange={s.setSoundEnabled} />
-        </Box>
-        <Box style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>{t('settings.soundKeypad')}</Text>
-          <Toggle
-            testID="sound-keypad-toggle"
-            value={s.soundKeypad}
-            disabled={!s.soundEnabled}
-            onValueChange={s.setSoundKeypad}
-          />
-        </Box>
-
-        <Text style={styles.section}>{t('settings.currency')}</Text>
-        <Box style={styles.chips}>
+      {page === 'currency' ? (
+        <Box style={styles.body}>
+          <Text style={styles.pageDescription}>{t('settings.currencySummary')}</Text>
           {currencies.map(cur => {
             const active = s.currency === cur;
             return (
@@ -200,109 +263,92 @@ export default function SettingsSheet({
                 testID={`currency-${cur}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[styles.chip, active && styles.chipActive]}
+                style={[styles.linkCard, active && styles.linkCardActive]}
                 onPress={() => s.setCurrency(cur)}>
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {cur === 'USD' ? '$ USD' : '€ EUR'}
-                </Text>
+                <Text style={styles.linkTitle}>{cur === 'USD' ? '$ USD' : '€ EUR'}</Text>
+                <Text style={styles.chevron}>{active ? '✓' : '›'}</Text>
               </Pressable>
             );
           })}
         </Box>
+      ) : null}
 
-        <Text style={styles.section}>{t('security.title')}</Text>
-        {pinMode ? (
-          <PinForm mode={pinMode} onCancel={() => setPinMode(null)} onSuccess={onPinSuccess} />
-        ) : (
-          <>
-            <Box style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>{t('security.pinLock')}</Text>
-            <Toggle
-                testID="pin-toggle"
-                value={s.securityEnabled}
-                onValueChange={onToggleSecurity}
-              />
-            </Box>
-            {s.securityEnabled ? (
-              <Box style={styles.chips}>
-                <Pressable
-                  testID="open-change-pin"
-                  style={styles.actionButton}
-                  onPress={() => setPinMode('change')}>
-                  <Text style={styles.actionButtonText}>{t('security.changePin')}</Text>
-                </Pressable>
-                <Pressable
-                  testID="open-remove-pin"
-                  style={styles.actionButton}
-                  onPress={() => setPinMode('remove')}>
-                  <Text style={styles.actionButtonText}>{t('security.removeLock')}</Text>
-                </Pressable>
+      {page === 'privacy' ? (
+        <Box style={styles.body}>
+          <Box style={styles.callout}>
+            <Text style={styles.calloutTitle}>{t('security.title')}</Text>
+            <Text style={styles.calloutBody}>{t('settings.securitySummary')}</Text>
+          </Box>
+          {pinMode ? (
+            <PinForm mode={pinMode} onCancel={() => setPinMode(null)} onSuccess={onPinSuccess} />
+          ) : (
+            <>
+              <Box style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>{t('security.pinLock')}</Text>
+                <Toggle testID="pin-toggle" value={s.securityEnabled} onValueChange={onToggleSecurity} />
               </Box>
-            ) : null}
-            <Box style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>{t('security.biometrics')}</Text>
-              <Toggle
-                testID="biometric-toggle"
-                value={s.biometricEnabled}
-                disabled={!s.securityEnabled || !bioAvailable}
-                onValueChange={onToggleBiometric}
-              />
-            </Box>
-          </>
-        )}
-
-        <Text style={styles.section}>{t('notif.title')}</Text>
-        <Box style={styles.chips}>
-          <Pressable
-            testID="open-notifications"
-            style={styles.actionButton}
-            onPress={onOpenNotifications}>
-            <Text style={styles.actionButtonText}>{t('notif.title')}</Text>
-          </Pressable>
+              {s.securityEnabled ? (
+                <Box style={styles.chips}>
+                  <Pressable testID="open-change-pin" style={styles.actionButton} onPress={() => setPinMode('change')}>
+                    <Text style={styles.actionButtonText}>{t('security.changePin')}</Text>
+                  </Pressable>
+                  <Pressable testID="open-remove-pin" style={styles.actionButton} onPress={() => setPinMode('remove')}>
+                    <Text style={styles.actionButtonText}>{t('security.removeLock')}</Text>
+                  </Pressable>
+                </Box>
+              ) : null}
+              <Box style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>{t('security.biometrics')}</Text>
+                <Toggle
+                  testID="biometric-toggle"
+                  value={s.biometricEnabled}
+                  disabled={!s.securityEnabled || !bioAvailable}
+                  onValueChange={onToggleBiometric}
+                />
+              </Box>
+            </>
+          )}
         </Box>
+      ) : null}
 
-        <Text style={styles.section}>{t('budgets.title')}</Text>
-        <Box style={styles.chips}>
-          <Pressable testID="open-budgets" style={styles.actionButton} onPress={onOpenBudgets}>
-            <Text style={styles.actionButtonText}>{t('budgets.title')}</Text>
-          </Pressable>
-          <Pressable testID="open-recurring" style={styles.actionButton} onPress={onOpenRecurring}>
-            <Text style={styles.actionButtonText}>{t('recurring.title')}</Text>
-          </Pressable>
-        </Box>
-
-        <Text style={styles.section}>{t('settings.backup')}</Text>
-        <Box style={styles.chips}>
-          <Pressable testID="settings-export" style={styles.actionButton} onPress={onExport}>
-            <Text style={styles.actionButtonText}>{t('settings.export')}</Text>
+      {page === 'backup' ? (
+        <Box style={styles.body}>
+          <Box style={styles.callout}>
+            <Text style={styles.calloutTitle}>{t('settings.backup')}</Text>
+            <Text style={styles.calloutBody}>{t('settings.backupSummary')}</Text>
+          </Box>
+          <Pressable testID="settings-export" style={styles.primaryButton} onPress={onExport}>
+            <Text style={styles.primaryButtonText}>{t('settings.export')}</Text>
           </Pressable>
           <Pressable
             testID="settings-import"
-            style={styles.actionButton}
-            onPress={() => setImportText('')}>
-            <Text style={styles.actionButtonText}>{t('settings.import')}</Text>
+            style={styles.secondaryButton}
+            onPress={() => { setImportText(''); setPage('import'); }}>
+            <Text style={styles.secondaryButtonText}>{t('settings.import')}</Text>
           </Pressable>
         </Box>
-        {importText !== null ? (
-          <>
-            <TextInput
-              testID="settings-import-text"
-              style={styles.importInput}
-              multiline
-              value={importText}
-              onChangeText={setImportText}
-              placeholder={t('settings.importPaste')}
-              placeholderTextColor={palette.muted}
-            />
-            <Pressable
-              testID="settings-import-confirm"
-              style={[styles.actionButton, styles.importConfirm]}
-              onPress={onImport}>
-              <Text style={styles.actionButtonText}>{t('settings.import')}</Text>
-            </Pressable>
-          </>
-          ) : null}
-      </Box>
+      ) : null}
+
+      {page === 'import' ? (
+        <Box style={styles.body}>
+          <Text style={styles.pageDescription}>{t('settings.importPaste')}</Text>
+          <TextInput
+            testID="settings-import-text"
+            style={styles.importInput}
+            multiline
+            value={importText ?? ''}
+            onChangeText={setImportText}
+            placeholder={t('settings.importPaste')}
+            placeholderTextColor={palette.muted}
+          />
+          <Pressable testID="settings-import-confirm" style={styles.primaryButton} onPress={onImport}>
+            <Text style={styles.primaryButtonText}>{t('settings.import')}</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => setPage('backup')}>
+            <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
+          </Pressable>
+        </Box>
+      ) : null}
     </SheetScaffold>
   );
 }

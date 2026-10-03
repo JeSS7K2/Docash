@@ -12,6 +12,7 @@ interface EntryState {
   editingId: string | null;
   editingCategoryId: string | null;
   openSheet: (kind: EntryKind) => void;
+  switchKind: (kind: EntryKind) => void;
   openEdit: (input: {
     id: string;
     kind: EntryKind;
@@ -42,6 +43,14 @@ export const useEntry = create<EntryState>()(set => ({
       editingId: null,
       editingCategoryId: null,
     })),
+  switchKind: kind =>
+    set(state => state.editingId || state.kind === kind
+      ? state
+      : {
+          kind,
+          drafts: { ...state.drafts, [state.kind]: state.buffer },
+          buffer: state.drafts[kind],
+        }),
   openEdit: ({ id, kind, amountCents, categoryId, note }) =>
     set({
       open: true,

@@ -30,7 +30,7 @@ export const makeStyles = (c: Palette) =>
       minHeight: 36,
       justifyContent: 'center',
     },
-    chipActive: { backgroundColor: c.ink },
+    chipActive: { backgroundColor: c.primary },
     chipText: { fontSize: type.metaSize, color: c.ink },
-    chipTextActive: { color: c.paper },
+    chipTextActive: { color: '#FFFFFF' },
   });

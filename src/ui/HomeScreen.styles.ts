@@ -1,14 +1,39 @@
 import { StyleSheet } from 'react-native';
-import { type Palette } from '../theme';
+import { radius, spacing, type, type Palette } from '../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.paper },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper },
-    compare: {
-      textAlign: 'center',
-      fontSize: 12,
-      fontWeight: '600',
-      marginBottom: 8,
-    },
+    homeContent: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
+    page: { flex: 1, backgroundColor: c.paper },
+    monthLabel: { color: c.muted, fontSize: type.metaSize, marginTop: spacing.md },
+    balanceCard: { backgroundColor: c.primary, borderRadius: 22, padding: spacing.xl, marginTop: spacing.md },
+    summaryRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
+    summaryCard: { flex: 1, minHeight: 68, borderRadius: 18, padding: spacing.md, justifyContent: 'center' },
+    incomeCard: { backgroundColor: c.income },
+    expenseCard: { backgroundColor: c.expense },
+    summaryLabel: { color: c.ink, fontSize: 10, fontWeight: '600' },
+    summaryAmount: { color: c.ink, fontSize: type.bodySize, fontWeight: '800', marginTop: spacing.xs },
+    planPrompt: { backgroundColor: c.primarySoft, borderRadius: 20, padding: spacing.lg, marginTop: spacing.md },
+    cardTitle: { color: c.ink, fontSize: type.bodySize, fontWeight: '800' },
+    helperText: { color: c.muted, fontSize: type.metaSize, marginTop: spacing.xs },
+    primaryButton: { backgroundColor: c.primary, borderRadius: radius.action, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, marginTop: spacing.md },
+    primaryButtonText: { color: '#FFFFFF', fontSize: type.metaSize, fontWeight: '700' },
+    secondaryButton: { backgroundColor: c.primarySoft, borderRadius: radius.action, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+    secondaryButtonText: { color: c.ink, fontSize: type.metaSize, fontWeight: '700' },
+    sectionTitle: { color: c.ink, fontSize: type.bodySize, fontWeight: '800', marginTop: spacing.xl, marginBottom: spacing.md },
+    searchInput: { marginHorizontal: spacing.xl, marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg, backgroundColor: c.faint, borderWidth: 1, borderColor: c.border, borderRadius: radius.action, color: c.ink, fontSize: type.metaSize },
+    filterRow: { flexDirection: 'row', gap: spacing.sm, backgroundColor: c.primarySoft, borderRadius: radius.action, marginHorizontal: spacing.xl, padding: spacing.xs, marginTop: spacing.md },
+    filterChip: { flex: 1, minHeight: 34, justifyContent: 'center', alignItems: 'center', borderRadius: radius.action },
+    filterChipActive: { backgroundColor: c.primary },
+    filterText: { color: c.ink, fontSize: type.metaSize },
+    filterTextActive: { color: '#FFFFFF', fontWeight: '700' },
+    movementList: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xl },
+    emptyText: { color: c.muted, textAlign: 'center', paddingVertical: spacing.xl },
+    bottomTabs: { flexDirection: 'row', backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.border, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.xs },
+    tabButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 38, borderRadius: radius.action },
+    tabButtonActive: { backgroundColor: c.primarySoft },
+    tabLabel: { color: c.muted, fontSize: 10, fontWeight: '600' },
+    tabLabelActive: { color: c.primary, fontWeight: '800' },
   });

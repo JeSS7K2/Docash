@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { Box, Text } from '@gluestack-ui/themed';
-import { ChevronRight, Trash2 } from 'react-native-feather';
+import { Trash2 } from 'react-native-feather';
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import type Category from '../../db/models/Category';
@@ -26,10 +26,11 @@ interface BudgetsSheetProps {
   isOpen: boolean;
   onClose: () => void;
   db: Database;
+  presentation?: 'sheet' | 'page';
 }
 
 /** Lista limpia de presupuestos; se configura en un modal dedicado. */
-export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps) {
+export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'sheet' }: BudgetsSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -43,6 +44,30 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
   const [configCat, setConfigCat] = useState<Category | null>(null);
   const [goals, setGoals] = useState<{ goal: Goal; progress: number }[]>([]);
   const [goalConfigOpen, setGoalConfigOpen] = useState(false);
+  const [view, setView] = useState<'budgets' | 'goals'>('budgets');
+  const monthlyTotal = Object.values(budgetMap).reduce(
+    (sum, budget) => sum + (budget.period === 'monthly' || !budget.period ? budget.amountCents : 0),
+    0,
+  );
+  const planTabs = (
+    <Box style={styles.segmentRow}>
+      {(['budgets', 'goals'] as const).map(tab => {
+        const active = view === tab;
+        return (
+          <Pressable
+            key={tab}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            style={[styles.segment, active && styles.segmentActive]}
+            onPress={() => setView(tab)}>
+            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+              {t(tab === 'budgets' ? 'budgets.title' : 'goals.title')}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </Box>
+  );
 
   const load = async () => {
     const [categories, budgets, goalList] = await Promise.all([
@@ -84,72 +109,87 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
   return (
     <>
       <SheetScaffold
-        isOpen={isOpen}
+        isOpen={isOpen && !(presentation === 'page' && (configCat !== null || goalConfigOpen))}
         onClose={onClose}
-        title={t('budgets.title')}
+        title={t('plan.title')}
         accent={palette.budget}
         accentSoft={palette.budgetSoft}
-        closeTestID="budgets-close">
+        closeTestID="budgets-close"
+        presentation={presentation}
+        fixedContent={planTabs}>
         <Box style={ui.body}>
-          {cats.map(cat => {
-            const key = `category.${cat.id}` as TranslationKey;
-            const translated = t(key);
-            const label = translated === key ? cat.name : translated;
-            const budget = budgetMap[cat.id];
-            const sp = spent[cat.id] ?? 0;
-            const b = budget?.amountCents ?? 0;
-            const period = budget?.period ?? 'monthly';
-            const interval = budget?.intervalDays ?? 1;
-            const unit = budget?.intervalUnit ?? 'day';
-            const over = b > 0 && sp > b;
-            const periodLabel =
-              period === 'custom'
-                ? `${interval} ${t(`period.${unit}` as 'period.day')}`
-                : t(`budgets.period.${period}` as 'budgets.period.monthly');
-            return (
-              <Pressable
-                key={cat.id}
-                testID={`budget-row-${cat.id}`}
-                style={styles.rowButton}
-                onPress={() => setConfigCat(cat)}>
-                <CategoryIcon id={cat.id} icon={cat.icon} color={palette.ink} size={20} />
-                <Box style={ui.spacer}>
-                  <Text style={ui.rowTitle}>{label}</Text>
-                  {b > 0 ? (
-                    <>
-                      <Box style={styles.barTrack}>
-                        <Box
-                          style={[
-                            styles.barFill,
-                            !over && styles.barFillOk,
-                            { width: `${Math.min(sp / b, 1) * 100}%` },
-                          ]}
-                        />
-                      </Box>
-                      <Box style={styles.metaRow}>
-                        <Text style={ui.rowMeta}>{`${money(sp)} / ${money(b)}`}</Text>
-                        <Text style={[ui.rowMeta, over && { color: palette.expense }]}>
-                          {periodLabel}
-                        </Text>
-                      </Box>
-                    </>
-                  ) : (
-                    <Text style={ui.rowMeta}>{t('budgets.setBudget')}</Text>
-                  )}
-                </Box>
-                <ChevronRight
-                  width={20}
-                  height={20}
-                  color={palette.muted}
-                  strokeWidth={2}
-                  style={styles.chevron}
-                />
-              </Pressable>
-            );
-          })}
-
-          <Text style={ui.section}>{t('goals.title')}</Text>
-          {goals.length === 0 ? <Text style={ui.rowMeta}>{t('goals.empty')}</Text> : null}
+          {view === 'budgets' ? (
+            <>
+              <Box style={styles.totalCard}>
+                <Text style={styles.totalLabel}>{t('plan.monthlyBudget')}</Text>
+                <Text style={styles.totalAmount}>{money(monthlyTotal)}</Text>
+                <Text style={styles.totalNote}>{t('plan.budgetNote')}</Text>
+              </Box>
+              {cats.map(cat => {
+                const key = `category.${cat.id}` as TranslationKey;
+                const translated = t(key);
+                const label = translated === key ? cat.name : translated;
+                const budget = budgetMap[cat.id];
+                const sp = spent[cat.id] ?? 0;
+                const b = budget?.amountCents ?? 0;
+                const period = budget?.period ?? 'monthly';
+                const interval = budget?.intervalDays ?? 1;
+                const unit = budget?.intervalUnit ?? 'day';
+                const over = b > 0 && sp > b;
+                const periodLabel =
+                  period === 'custom'
+                    ? `${interval} ${t(`period.${unit}` as 'period.day')}`
+                    : t(`budgets.period.${period}` as 'budgets.period.monthly');
+                return (
+                  <Pressable
+                    key={cat.id}
+                    testID={`budget-row-${cat.id}`}
+                    style={styles.budgetCard}
+                    onPress={() => setConfigCat(cat)}>
+                    <CategoryIcon id={cat.id} icon={cat.icon} color={palette.ink} size={20} />
+                    <Box style={ui.spacer}>
+                      <Text style={ui.rowTitle}>{label}</Text>
+                      {b > 0 ? (
+                        <>
+                          <Box style={styles.barTrack}>
+                            <Box
+                              style={[
+                                styles.barFill,
+                                !over && styles.barFillOk,
+                                over && { backgroundColor: palette.expense },
+                                { width: `${Math.min(sp / b, 1) * 100}%` },
+                              ]}
+                            />
+                          </Box>
+                          <Box style={styles.metaRow}>
+                            <Text style={ui.rowMeta}>{`${money(sp)} / ${money(b)}`}</Text>
+                            <Text style={[ui.rowMeta, over && { color: palette.expense }]}>
+                              {periodLabel}
+                            </Text>
+                          </Box>
+                        </>
+                      ) : (
+                        <Text style={ui.rowMeta}>{t('budgets.setBudget')}</Text>
+                      )}
+                    </Box>
+                    <Text style={styles.editText}>{`${t('plan.edit')} ›`}</Text>
+                  </Pressable>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              <Box style={styles.goalsIntro}>
+                <Text style={styles.goalsIntroTitle}>{t('plan.goalsIntro')}</Text>
+                <Text style={styles.goalsIntroBody}>{t('plan.goalsBody')}</Text>
+                <Pressable
+                  testID="goal-add"
+                  style={styles.goalAddButton}
+                  onPress={() => setGoalConfigOpen(true)}>
+                  <Text style={styles.goalAddText}>{t('goals.add')}</Text>
+                </Pressable>
+              </Box>
+              {goals.length === 0 ? <Text style={ui.rowMeta}>{t('goals.empty')}</Text> : null}
           {goals.map(({ goal, progress }) => {
             const pct = goal.targetCents > 0 ? Math.min(progress / goal.targetCents, 1) : 0;
             const reached = progress >= goal.targetCents;
@@ -160,7 +200,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
                 )
               : t('goals.indefinite');
             return (
-              <Box key={goal.id} style={ui.row}>
+              <Box key={goal.id} style={[ui.row, styles.goalCard]}>
                 <Box style={ui.spacer}>
                   <Box style={styles.titleRow}>
                     <Text style={ui.rowTitle}>{goal.name}</Text>
@@ -191,18 +231,15 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
               </Box>
             );
           })}
-          <Pressable
-            testID="goal-add"
-            style={[ui.actionButton, styles.deleteButton]}
-            onPress={() => setGoalConfigOpen(true)}>
-            <Text style={ui.actionButtonText}>{t('goals.add')}</Text>
-          </Pressable>
+            </>
+          )}
         </Box>
       </SheetScaffold>
       <BudgetConfigSheet
         isOpen={configCat !== null}
         category={configCat}
         db={db}
+        presentation={presentation}
         onClose={() => {
           setConfigCat(null);
           load().catch(error => showError(error, 'errors.budgetsLoad'));
@@ -211,6 +248,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
       <GoalsConfigSheet
         isOpen={goalConfigOpen}
         db={db}
+        presentation={presentation}
         onClose={() => {
           setGoalConfigOpen(false);
           load().catch(error => showError(error, 'errors.budgetsLoad'));

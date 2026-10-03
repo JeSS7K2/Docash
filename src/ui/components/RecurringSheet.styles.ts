@@ -4,7 +4,23 @@ import { radius, spacing, type, type Palette } from '../../theme';
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     chipsSpacing: { marginTop: spacing.md },
-    addButton: { marginTop: spacing.md },
+    addButton: { marginTop: spacing.md, backgroundColor: c.primary, minHeight: 48 },
+    addButtonText: { color: c.onAction },
+    emptyCard: {
+      backgroundColor: c.primarySoft,
+      borderRadius: radius.action,
+      padding: spacing.xl,
+      marginBottom: spacing.lg,
+    },
+    emptyTitle: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
+    emptyBody: { color: c.muted, fontSize: type.metaSize, marginTop: spacing.sm },
+    ruleCard: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+      marginBottom: spacing.md,
+      borderRadius: radius.action,
+      backgroundColor: c.faint,
+    },
     daysInput: {
       width: 64,
       borderWidth: 1,
@@ -28,7 +44,7 @@ export const makeStyles = (c: Palette) =>
     },
     kindCardExpense: { backgroundColor: c.expense },
     kindCardIncome: { backgroundColor: c.income },
-    kindCardText: { color: c.onAction, fontSize: type.actionSize, fontWeight: '800' },
+    kindCardText: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
     backButton: { alignSelf: 'flex-start', marginBottom: spacing.md, paddingVertical: spacing.sm },
     backText: { color: c.muted, fontSize: type.bodySize },
   });

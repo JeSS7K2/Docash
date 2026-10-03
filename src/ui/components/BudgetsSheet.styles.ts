@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { radius, spacing, type Palette } from '../../theme';
+import { radius, spacing, type, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
@@ -10,8 +10,8 @@ export const makeStyles = (c: Palette) =>
       marginTop: spacing.md,
       overflow: 'hidden',
     },
-    barFill: { height: 6, borderRadius: 3, backgroundColor: c.expense },
-    barFillOk: { backgroundColor: c.income },
+    barFill: { height: 6, borderRadius: 3, backgroundColor: c.primary },
+    barFillOk: { backgroundColor: c.primary },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -65,13 +65,69 @@ export const makeStyles = (c: Palette) =>
     },
     metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
     configBody: { paddingHorizontal: spacing.xl },
-    rowButton: {
+    segmentRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+      marginHorizontal: spacing.xl,
+      marginBottom: spacing.lg,
+      padding: spacing.xs,
+      borderRadius: radius.action,
+      backgroundColor: c.primarySoft,
+    },
+    segment: {
+      flex: 1,
+      minHeight: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.action,
+    },
+    segmentActive: { backgroundColor: c.primary },
+    segmentText: { color: c.ink, fontSize: type.metaSize, fontWeight: '600' },
+    segmentTextActive: { color: c.onAction },
+    totalCard: {
+      backgroundColor: c.primary,
+      borderRadius: radius.action,
+      padding: spacing.xl,
+      marginBottom: spacing.lg,
+    },
+    totalLabel: { color: c.onAction, fontSize: type.metaSize, fontWeight: '700' },
+    totalAmount: { color: c.onAction, fontSize: 30, fontWeight: '800', marginTop: spacing.sm },
+    totalNote: { color: c.onAction, opacity: 0.86, fontSize: type.metaSize, marginTop: spacing.md },
+    budgetCard: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.md,
-      paddingVertical: spacing.md,
+      minHeight: 76,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      borderRadius: radius.action,
+      backgroundColor: c.faint,
     },
-    chevron: { marginLeft: spacing.sm },
+    editText: { color: c.ink, fontSize: type.metaSize, fontWeight: '600' },
+    goalsIntro: {
+      backgroundColor: c.income,
+      padding: spacing.xl,
+      borderRadius: radius.action,
+      marginBottom: spacing.lg,
+    },
+    goalsIntroTitle: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
+    goalsIntroBody: { color: c.ink, fontSize: type.metaSize, marginTop: spacing.sm },
+    goalAddButton: {
+      backgroundColor: c.primary,
+      minHeight: 42,
+      borderRadius: radius.action,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: spacing.lg,
+    },
+    goalAddText: { color: c.onAction, fontSize: type.metaSize, fontWeight: '700' },
+    goalCard: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+      marginBottom: spacing.md,
+      borderRadius: radius.action,
+      backgroundColor: c.faint,
+    },
     saveButton: { marginTop: spacing.lg },
     deleteButton: { marginTop: spacing.md },
     dateButton: { justifyContent: 'center', marginTop: spacing.sm },

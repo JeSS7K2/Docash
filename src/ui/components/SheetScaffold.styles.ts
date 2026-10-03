@@ -1,8 +1,14 @@
 import { StyleSheet } from 'react-native';
-import { radius, spacing, type Palette } from '../../theme';
+import { radius, spacing, type, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    page: { flex: 1 },
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: c.overlay },
+    pageHeader: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.md },
+    pageTitle: { fontSize: 22, fontWeight: '800' },
+    pageBack: { fontSize: type.metaSize, marginTop: spacing.md },
+    pageScroll: { paddingBottom: spacing.xl },
     content: {
       backgroundColor: c.paper,
       borderTopLeftRadius: 24,

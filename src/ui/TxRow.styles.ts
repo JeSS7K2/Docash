@@ -9,6 +9,9 @@ export const makeStyles = (c: Palette) =>
       paddingVertical: 10,
       paddingHorizontal: spacing.xl,
       minHeight: 64,
+      backgroundColor: c.faint,
+      borderRadius: radius.action,
+      marginBottom: spacing.sm,
     },
     iconWrap: {
       width: 40,

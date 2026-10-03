@@ -19,6 +19,7 @@ interface GoalsConfigSheetProps {
   isOpen: boolean;
   onClose: () => void;
   db: Database;
+  presentation?: 'sheet' | 'page';
 }
 
 function pad(n: number): string {
@@ -26,7 +27,7 @@ function pad(n: number): string {
 }
 
 /** Alta de un objetivo (meta + fecha límite opcional; indefinido por defecto). */
-export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigSheetProps) {
+export default function GoalsConfigSheet({ isOpen, onClose, db, presentation = 'sheet' }: GoalsConfigSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -42,7 +43,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
   const [day, setDay] = useState(pad(now.getDate()));
   const [month, setMonth] = useState(pad(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
-  const [error, setError] = useState('');
+  const [validationError, setValidationError] = useState('');
 
   const parseDeadline = (): number | null => {
     const d = parseInt(day, 10);
@@ -67,7 +68,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
     }
     if (!name.trim() || targetCents <= 0) {
       playSound('error');
-      setError(t('goals.target'));
+      setValidationError(t('goals.target'));
       return;
     }
     let deadline: number | null = null;
@@ -75,7 +76,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
       deadline = parseDeadline();
       if (!deadline) {
         playSound('error');
-        setError(t('goals.deadline'));
+        setValidationError(t('goals.deadline'));
         return;
       }
     }
@@ -85,11 +86,11 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
       setName('');
       setAmountText('');
       setHasDeadline(false);
-      setError('');
+      setValidationError('');
       onClose();
-    } catch (error) {
+    } catch (cause) {
       playSound('error');
-      showError(error, 'errors.goalSave');
+      showError(cause, 'errors.goalSave');
     }
   };
 
@@ -99,7 +100,8 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
       onClose={onClose}
       title={t('goals.add')}
       accent={palette.recurring}
-      accentSoft={palette.recurringSoft}>
+      accentSoft={palette.recurringSoft}
+      presentation={presentation}>
       <Box style={styles.configBody}>
         <Text style={ui.section}>{t('goals.name')}</Text>
         <TextInput
@@ -158,7 +160,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
         ) : (
           <Text style={ui.rowMeta}>{t('goals.indefinite')}</Text>
         )}
-        {error ? <Text style={[ui.section, { color: palette.expense }]}>{error}</Text> : null}
+        {validationError ? <Text style={[ui.section, { color: palette.expense }]}>{validationError}</Text> : null}
         <Box style={ui.chips}>
           <Pressable testID="goal-save" style={ui.actionButton} onPress={save}>
             <Text style={ui.actionButtonText}>{t('common.save')}</Text>

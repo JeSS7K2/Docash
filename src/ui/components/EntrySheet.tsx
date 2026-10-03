@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, TextInput, Vibration } from 'react-native';
-import { Divider, Pressable, Text } from '@gluestack-ui/themed';
+import { Box, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import { createTransaction, deleteTransaction, updateTransaction } from '../../db/operations';
@@ -25,12 +25,13 @@ import type Category from '../../db/models/Category';
 
 interface EntrySheetProps {
   db: Database;
+  presentation?: 'sheet' | 'page';
 }
 
 /**
  * Flujo en dos pasos: monto + categoría, después confirmación explícita.
  */
-export default function EntrySheet({ db }: EntrySheetProps) {
+export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetProps) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t, locale } = useTranslation();
@@ -45,6 +46,7 @@ export default function EntrySheet({ db }: EntrySheetProps) {
     closeSheet,
     pressKey,
     setNote,
+    switchKind,
   } = useEntry();
   const { showError, showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -57,7 +59,7 @@ export default function EntrySheet({ db }: EntrySheetProps) {
       setRepeat(false);
       setSelectedCategoryId(editingId ? editingCategoryId : null);
     }
-  }, [editingCategoryId, editingId, open]);
+  }, [editingCategoryId, editingId, kind, open]);
 
   useEffect(() => {
     if (!open) {
@@ -91,11 +93,11 @@ export default function EntrySheet({ db }: EntrySheetProps) {
           return;
         }
         await createTransaction(db, { accountId: account.id, categoryId, kind, amountCents, note });
-        if (kind === 'income' && repeat) {
+        if (repeat) {
           const rule = await createRecurringRule(db, {
             accountId: account.id,
             categoryId,
-            kind: 'income',
+            kind,
             amountCents,
             frequency: 'monthly',
           });
@@ -165,8 +167,8 @@ export default function EntrySheet({ db }: EntrySheetProps) {
   const title = editingId
     ? t('tx.edit')
     : kind === 'expense'
-      ? t('entry.expense')
-      : t('entry.income');
+      ? t('entry.newExpense')
+      : t('entry.newIncome');
   const selectedCategory = categories.find(category => category.id === selectedCategoryId);
   const selectedLabel = selectedCategory
     ? (() => {
@@ -184,28 +186,32 @@ export default function EntrySheet({ db }: EntrySheetProps) {
         title={title}
         accent={accent}
         accentSoft={accentSoft}
-        closeTestID="entry-close">
-        <Text style={[styles.amount, { color: accent }]} testID="entry-amount">
-          {formatBuffer(buffer, currency, locale)}
-        </Text>
-        <Text style={styles.stepHint}>{t('entry.chooseCategory')}</Text>
-        <TextInput
-          testID="entry-note"
-          style={styles.noteInput}
-          value={note}
-          onChangeText={setNote}
-          placeholder={t('entry.note')}
-          placeholderTextColor={palette.muted}
-          maxLength={280}
-        />
-        <Numpad onKey={pressKey} />
-        {kind === 'income' && !editingId ? (
-          <Pressable style={styles.repeatRow}>
-            <Text style={styles.repeatLabel}>{t('entry.repeat')}</Text>
-            <Toggle value={repeat} onValueChange={setRepeat} />
-          </Pressable>
+        closeTestID="entry-close"
+        presentation={presentation}>
+        {!editingId ? (
+          <Box style={styles.kindSegment}>
+            {(['expense', 'income'] as const).map(option => {
+              const selected = kind === option;
+              const buttonColor = selected ? (option === 'expense' ? palette.primary : palette.income) : 'transparent';
+              const textColor = selected && option === 'expense' ? '#FFFFFF' : palette.ink;
+              return (
+                <Pressable
+                  key={option}
+                  testID={`entry-kind-${option}`}
+                  style={[styles.kindOption, { backgroundColor: buttonColor }]}
+                  onPress={() => switchKind(option)}>
+                  <Text style={[styles.kindOptionText, { color: textColor }]}>
+                    {t(option === 'expense' ? 'entry.expense' : 'entry.income')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Box>
         ) : null}
-        <Divider style={styles.divider} />
+        <Box style={[styles.amountPanel, { backgroundColor: accent }]}>
+          <Text style={styles.amountLabel}>{`${t('entry.amount').toLocaleUpperCase()} · ${currency}`}</Text>
+          <Text style={styles.amount} testID="entry-amount">{formatBuffer(buffer, currency, locale)}</Text>
+        </Box>
         <Text style={styles.fieldLabel}>
           {kind === 'income' ? t('entry.selectIncomeCategory') : t('entry.selectCategory')}
         </Text>
@@ -228,6 +234,27 @@ export default function EntrySheet({ db }: EntrySheetProps) {
           </Text>
           <Text style={[styles.chevron, { color: accent }]}>⌄</Text>
         </Pressable>
+        <Box style={styles.dateRow}>
+          <Box style={styles.dateControl}>
+            <Text style={styles.fieldLabel}>{t('entry.date')}</Text>
+            <Text style={styles.dateValue}>{t('entry.today')}</Text>
+          </Box>
+          <Box style={styles.repeatControl}>
+            <Text style={styles.repeatLabel}>{t('entry.repeat')}</Text>
+            <Toggle value={repeat} onValueChange={setRepeat} />
+          </Box>
+        </Box>
+        <TextInput
+          testID="entry-note"
+          style={styles.noteInput}
+          value={note}
+          onChangeText={setNote}
+          placeholder={t('entry.note')}
+          placeholderTextColor={palette.muted}
+          maxLength={280}
+        />
+        <Numpad onKey={pressKey} />
+        <Text style={styles.stepHint}>{t('entry.chooseCategory')}</Text>
         <Pressable
           testID="entry-submit"
           accessibilityRole="button"
@@ -235,11 +262,11 @@ export default function EntrySheet({ db }: EntrySheetProps) {
           disabled={!selectedCategoryId}
           style={[
             styles.submitButton,
-            { backgroundColor: accent },
+            { backgroundColor: kind === 'income' ? palette.income : palette.primary },
             !selectedCategoryId && styles.submitButtonDisabled,
           ]}
           onPress={() => selectedCategoryId && commit(selectedCategoryId)}>
-          <Text style={styles.submitText}>{t('entry.submit')}</Text>
+          <Text style={[styles.submitText, kind === 'income' && styles.incomeSubmitText]}>{t('entry.submit')}</Text>
         </Pressable>
         {editingId ? (
           <Pressable
@@ -260,6 +287,7 @@ export default function EntrySheet({ db }: EntrySheetProps) {
         kind={kind}
         onSelect={setSelectedCategoryId}
         onCreate={createCustomCategory}
+        presentation={presentation}
       />
     </>
   );

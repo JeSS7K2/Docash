@@ -20,7 +20,7 @@ export const spacing = {
 
 export const radius = {
   icon: 20,
-  action: 14,
+  action: 18,
 } as const;
 
 export const monthDonutSize = 220;

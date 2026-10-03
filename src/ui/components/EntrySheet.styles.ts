@@ -4,12 +4,17 @@ import { radius, spacing, type, type Palette } from '../../theme';
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     amount: {
-      textAlign: 'center',
-      fontSize: 40,
+      textAlign: 'left',
+      color: '#2A223B',
+      fontSize: 34,
       fontWeight: '800',
-      marginTop: spacing.md,
-      marginBottom: spacing.lg,
+      marginTop: spacing.sm,
     },
+    kindSegment: { flexDirection: 'row', marginHorizontal: spacing.xl, padding: spacing.xs, borderRadius: radius.action, backgroundColor: c.primarySoft },
+    kindOption: { flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radius.action },
+    kindOptionText: { fontSize: type.metaSize, fontWeight: '700' },
+    amountPanel: { marginHorizontal: spacing.xl, marginTop: spacing.md, padding: spacing.lg, borderRadius: 20, minHeight: 88, justifyContent: 'center' },
+    amountLabel: { color: c.ink, fontSize: 10, fontWeight: '700' },
     stepHint: {
       textAlign: 'center',
       color: c.muted,
@@ -36,6 +41,10 @@ export const makeStyles = (c: Palette) =>
       minHeight: 40,
     },
     repeatLabel: { fontSize: type.bodySize, color: c.ink },
+    dateRow: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.xl, marginTop: spacing.md },
+    dateControl: { flex: 1, minHeight: 58, justifyContent: 'center', paddingHorizontal: spacing.md, backgroundColor: c.faint, borderRadius: radius.action },
+    dateValue: { color: c.ink, fontSize: type.bodySize, fontWeight: '600', marginTop: spacing.xs },
+    repeatControl: { flex: 1, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, backgroundColor: c.faint, borderRadius: radius.action },
     fieldLabel: {
       marginHorizontal: spacing.xl,
       marginBottom: spacing.sm,
@@ -69,7 +78,8 @@ export const makeStyles = (c: Palette) =>
       backgroundColor: c.primary,
     },
     submitButtonDisabled: { opacity: 0.45 },
-    submitText: { color: c.onAction, fontSize: type.actionSize, fontWeight: type.actionWeight },
+    submitText: { color: '#FFFFFF', fontSize: type.actionSize, fontWeight: type.actionWeight },
+    incomeSubmitText: { color: c.ink },
     deleteButton: {
       flexDirection: 'row',
       alignItems: 'center',

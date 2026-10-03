@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, SafeAreaView, Text } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import type { Database } from '@nozbe/watermelondb';
 import { database, ensurePerformanceSetup } from '../db/database';
@@ -7,9 +16,7 @@ import {
   fetchTransactionsInRange,
   getAccountBalance,
   getEarliestTransactionDate,
-  getPieInRange,
   observeTransactionsInRange,
-  type PieSlice,
 } from '../db/queries';
 import { seedDatabase } from '../db/seed';
 import { seedMockData } from '../db/mock';
@@ -20,121 +27,84 @@ import { runNotificationChecks, syncScheduledNotifications } from '../notificati
 import { playSound } from '../services/sound';
 import { saveWidgetSnapshot } from '../state/widgetData';
 import { DocashWidget } from '../widgets/DocashWidget';
-import { labelForPeriod, rangeForPeriod, shiftAnchor, type EpochRange } from '../utils/dateRange';
-import { buildTrend, type TrendBucket } from '../utils/trend';
+import { labelForPeriod, rangeForPeriod, shiftAnchor, type EpochRange, type PeriodKind } from '../utils/dateRange';
 import { useEntry } from '../state/useEntry';
 import { useFilters } from '../state/useFilters';
 import { useSettings } from '../state/useSettings';
 import { useTranslation, type TranslationKey } from '../i18n';
+import { useMoney } from '../state/useMoney';
 import { usePalette, useThemedStyles } from '../theme';
 import BalanceHeader from './components/BalanceHeader';
 import BudgetsSheet from './components/BudgetsSheet';
 import EntryActions from './components/EntryActions';
 import EntrySheet from './components/EntrySheet';
-import MonthDonut from './components/MonthDonut';
 import NotificationsSheet from './components/NotificationsSheet';
 import PeriodFilter from './components/PeriodFilter';
 import RecurringSheet from './components/RecurringSheet';
 import SettingsSheet from './components/SettingsSheet';
 import TopBar from './components/TopBar';
-import TransactionList from './components/TransactionList';
-import TrendChart from './components/TrendChart';
-import type { TxRowData } from './TxRow';
+import TxRow, { type TxRowData } from './TxRow';
 import { makeStyles } from './HomeScreen.styles';
 import { useToast } from './Toast';
 import type Account from '../db/models/Account';
 import type Category from '../db/models/Category';
-import type Transaction from '../db/models/Transaction';
 
 const CATEGORY_FALLBACK: TranslationKey = 'category.cat_other_exp';
-const sumExpenses = (slices: PieSlice[]) => slices.reduce((acc, s) => acc + s.totalCents, 0);
+type MainTab = 'home' | 'movements' | 'plan' | 'recurring';
+type MovementKind = 'all' | 'income' | 'expense';
 
-/** Refresca el widget si está colocado en el launcher. Silencioso si no. */
+/** Actualiza el widget si está instalado; no requiere que exista en el launcher. */
 function requestWidgetUpdateAdapter(): void {
   requestWidgetUpdate({
     widgetName: 'DocashWidget',
     renderWidget: () => <DocashWidget />,
-  }).catch(() => {
-    // Sin widget en el launcher: no es un error.
-  });
+  }).catch(() => {});
 }
 
-/** Home: TopBar + balance + periodo + donut + tendencia + lista. */
 export default function HomeScreen({ db = database }: { db?: Database }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
+  const money = useMoney();
   const { t, locale } = useTranslation();
   const { showError } = useToast();
   const userName = useSettings(s => s.userName);
   const installedAt = useSettings(s => s.installedAt);
   const setInstalledAt = useSettings(s => s.setInstalledAt);
-  const chartWidth = Dimensions.get('window').width - 32;
-
   const [ready, setReady] = useState(false);
+  const [activeTab, setActiveTab] = useState<MainTab>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [budgetsOpen, setBudgetsOpen] = useState(false);
-  const [recurringOpen, setRecurringOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountName, setAccountName] = useState('');
-  const [accountId, setAccountId] = useState<string | undefined>(undefined);
+  const [accountId, setAccountId] = useState<string | undefined>();
   const [balance, setBalance] = useState(0);
-  const [pie, setPie] = useState<PieSlice[]>([]);
-  const [prevTotal, setPrevTotal] = useState<number | null>(null);
-  const [trend, setTrend] = useState<TrendBucket[]>([]);
+  const [incomeTotal, setIncomeTotal] = useState(0);
+  const [expenseTotal, setExpenseTotal] = useState(0);
+  const [earliestTransactionDate, setEarliestTransactionDate] = useState<number | null>(null);
   const [rows, setRows] = useState<TxRowData[]>([]);
-  const [earliestTxAt, setEarliestTxAt] = useState<number | null>(null);
 
   const period = useFilters(s => s.period);
   const anchorMs = useFilters(s => s.anchorMs);
   const setPeriod = useFilters(s => s.setPeriod);
   const setAnchorMs = useFilters(s => s.setAnchorMs);
+  const entryOpen = useEntry(s => s.open);
   const openSheet = useEntry(s => s.openSheet);
   const openEdit = useEntry(s => s.openEdit);
+  const currentRange = useMemo(() => rangeForPeriod(period, anchorMs), [period, anchorMs]);
 
-  // Primer arranque: sella la fecha de instalación.
   useEffect(() => {
-    if (installedAt === 0) {
+    if (!installedAt) {
       setInstalledAt(Date.now());
     }
   }, [installedAt, setInstalledAt]);
 
-  // Límite inferior de navegación: instalación (o import si es anterior).
-  const minDate = useMemo(() => {
-    const candidates = [installedAt > 0 ? installedAt : Infinity, earliestTxAt ?? Infinity];
-    return Math.min(...candidates);
-  }, [installedAt, earliestTxAt]);
-
-  const currentRange = useMemo(() => rangeForPeriod(period, anchorMs), [period, anchorMs]);
-  const canGoPrev = currentRange ? currentRange.from > minDate : true;
-
-  const periodLabel = useMemo(
-    () =>
-      period === 'all'
-        ? t('period.allTime')
-        : labelForPeriod(period, anchorMs, locale === 'es' ? 'es-ES' : 'en-US'),
-    [period, anchorMs, locale, t],
-  );
-
-  const currentTotal = useMemo(() => sumExpenses(pie), [pie]);
-
-  const changePct = useMemo(() => {
-    if (period === 'all' || prevTotal === null || prevTotal <= 0) {
-      return null;
-    }
-    return Math.round(((currentTotal - prevTotal) / prevTotal) * 100);
-  }, [period, prevTotal, currentTotal]);
-
   useEffect(() => {
     let cancelled = false;
     const range = rangeForPeriod(period, anchorMs);
-    const prevRange: EpochRange | null =
-      period === 'all' ? null : rangeForPeriod(period, shiftAnchor(period, anchorMs, -1));
-
     const subscription = observeTransactionsInRange(db, range).subscribe(() => {
-      refresh(range, prevRange).catch(error => showError(error, 'errors.refresh'));
+      refresh(range).catch(error => showError(error, 'errors.refresh'));
     });
 
-    async function refresh(activeRange: EpochRange | null, previousRange: EpochRange | null) {
+    async function refresh(activeRange: EpochRange | null) {
       const accounts = await db.get<Account>('accounts').query().fetch();
       const account = accounts[0] ?? null;
       if (cancelled) {
@@ -144,10 +114,8 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         setReady(true);
         return;
       }
-      const [nextBalance, nextPie, prevPie, txs, categories, earliest] = await Promise.all([
+      const [nextBalance, txs, categories, earliestDate] = await Promise.all([
         getAccountBalance(db, account),
-        getPieInRange(db, activeRange),
-        previousRange ? getPieInRange(db, previousRange) : Promise.resolve<PieSlice[]>([]),
         fetchTransactionsInRange(db, activeRange),
         db.get<Category>('categories').query().fetch(),
         getEarliestTransactionDate(db),
@@ -155,27 +123,25 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       if (cancelled) {
         return;
       }
-      setEarliestTxAt(earliest);
-      const byId = new Map(categories.map(c => [c.id, c]));
       setAccountId(account.id);
       setAccountName(account.name);
       setBalance(nextBalance);
+      setEarliestTransactionDate(earliestDate);
+      setIncomeTotal(txs.reduce((sum, tx) => sum + (tx.kind === 'income' ? tx.amountCents : 0), 0));
+      setExpenseTotal(txs.reduce((sum, tx) => sum + (tx.kind === 'expense' ? tx.amountCents : 0), 0));
       saveWidgetSnapshot(nextBalance);
       requestWidgetUpdateAdapter();
-      setPie(nextPie);
-      setPrevTotal(previousRange ? sumExpenses(prevPie) : null);
-      setTrend(buildTrend(period, anchorMs, txs as Transaction[], locale));
+      const byId = new Map(categories.map(category => [category.id, category]));
       setRows(
         txs.slice(0, 100).map(tx => {
           const cat = tx.categoryId ? byId.get(tx.categoryId) : undefined;
-          const catKey = `category.${cat?.id ?? ''}` as TranslationKey;
-          const translated = cat ? t(catKey) : t(CATEGORY_FALLBACK);
-          const title = cat && translated !== catKey ? translated : cat?.name ?? t(CATEGORY_FALLBACK);
+          const key = `category.${cat?.id ?? ''}` as TranslationKey;
+          const translated = cat ? t(key) : t(CATEGORY_FALLBACK);
           return {
             id: tx.id,
             categoryId: cat?.id,
             icon: cat?.icon,
-            title,
+            title: cat ? (translated === key ? cat.name : translated) : t(CATEGORY_FALLBACK),
             note: tx.note,
             occurredOn: tx.occurredOn,
             amountCents: tx.amountCents,
@@ -196,7 +162,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       await syncScheduledNotifications(db).catch(error => showError(error, 'errors.generic'));
       await runNotificationChecks(db).catch(error => showError(error, 'errors.generic'));
       if (!cancelled) {
-        await refresh(range, prevRange);
+        await refresh(range);
       }
     })();
 
@@ -204,7 +170,27 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [db, period, anchorMs, t, locale]);
+  }, [db, period, anchorMs, t, locale, showError]);
+
+  const minDate = Math.min(installedAt || Infinity, earliestTransactionDate || Infinity);
+  const canGoPrev = currentRange ? currentRange.from > minDate : true;
+  const periodLabel = period === 'all'
+    ? t('period.allTime')
+    : labelForPeriod(period, anchorMs, locale === 'es' ? 'es-ES' : 'en-US');
+  const routeOpen = entryOpen || settingsOpen || notificationsOpen;
+
+  const editRow = (id: string) => {
+    const row = rows.find(item => item.id === id);
+    if (row && row.kind !== 'transfer') {
+      openEdit({
+        id: row.id,
+        kind: row.kind,
+        amountCents: row.amountCents,
+        categoryId: row.categoryId,
+        note: row.note,
+      });
+    }
+  };
 
   const confirmDelete = (id: string) => {
     Alert.alert(t('entry.delete'), t('tx.deleteConfirm'), [
@@ -221,76 +207,202 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   };
 
   if (!ready) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.center}><ActivityIndicator size="large" color={palette.primary} /></SafeAreaView>;
   }
 
   return (
     <SafeAreaView style={styles.root}>
-      <TopBar userName={userName} onOpenSettings={() => setSettingsOpen(true)} />
-      <BalanceHeader balanceCents={balance} accountName={accountName} accountId={accountId} />
-      <PeriodFilter
-        period={period}
-        anchorMs={anchorMs}
-        onPeriodChange={setPeriod}
-        onShift={direction => setAnchorMs(shiftAnchor(period, anchorMs, direction))}
-        canGoPrev={canGoPrev}
-      />
-      <MonthDonut slices={pie} label={periodLabel} />
-      {changePct !== null ? (
-        <Text
-          style={[
-            styles.compare,
-            { color: changePct > 0 ? palette.expense : palette.income },
-          ]}>
-          {`${changePct > 0 ? '▲' : '▼'} ${Math.abs(changePct)}% ${t('compare.vsPrevious')}`}
-        </Text>
+      {!routeOpen ? (
+        <>
+          {activeTab === 'home' ? (
+            <ScrollView contentContainerStyle={styles.homeContent}>
+              <TopBar userName={userName} title={t('nav.home')} onOpenSettings={() => setSettingsOpen(true)} />
+              <Text style={styles.monthLabel}>{periodLabel}</Text>
+              <View style={styles.balanceCard}>
+                <BalanceHeader balanceCents={balance} accountName={accountName} accountId={accountId} variant="hero" />
+              </View>
+              <View style={styles.summaryRow}>
+                <View style={[styles.summaryCard, styles.incomeCard]}>
+                  <Text style={styles.summaryLabel}>{t('home.monthIncome')}</Text>
+                  <Text style={styles.summaryAmount}>{`+ ${money(incomeTotal)}`}</Text>
+                </View>
+                <View style={[styles.summaryCard, styles.expenseCard]}>
+                  <Text style={styles.summaryLabel}>{t('home.monthExpense')}</Text>
+                  <Text style={styles.summaryAmount}>{money(expenseTotal)}</Text>
+                </View>
+              </View>
+              <EntryActions onExpense={() => openSheet('expense')} onIncome={() => openSheet('income')} />
+              <View style={styles.planPrompt}>
+                <Text style={styles.cardTitle}>{t('home.planPromptTitle')}</Text>
+                <Text style={styles.helperText}>{t('home.planPromptBody')}</Text>
+                <Pressable style={styles.primaryButton} onPress={() => setActiveTab('plan')}>
+                  <Text style={styles.primaryButtonText}>{t('home.createBudget')}</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.sectionTitle}>{t('home.recent')}</Text>
+              {rows.slice(0, 3).map(row => (
+                <TxRow key={row.id} row={row} onPress={editRow} onDelete={confirmDelete} />
+              ))}
+            </ScrollView>
+          ) : null}
+
+          {activeTab === 'movements' ? (
+            <MovementsPage
+              rows={rows}
+              period={period}
+              anchorMs={anchorMs}
+              canGoPrev={canGoPrev}
+              onPeriodChange={setPeriod}
+              onShift={direction => setAnchorMs(shiftAnchor(period, anchorMs, direction))}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onEdit={editRow}
+              onDelete={confirmDelete}
+              onAdd={() => openSheet('expense')}
+            />
+          ) : null}
+
+          {activeTab === 'plan' ? (
+            <BudgetsSheet
+              isOpen
+              onClose={() => setActiveTab('home')}
+              db={db}
+              presentation="page"
+            />
+          ) : null}
+          {activeTab === 'recurring' ? (
+            <RecurringSheet
+              isOpen
+              onClose={() => setActiveTab('home')}
+              db={db}
+              presentation="page"
+            />
+          ) : null}
+          <BottomTabs active={activeTab} onChange={setActiveTab} />
+        </>
       ) : null}
-      <TrendChart buckets={trend} width={chartWidth} />
-      <TransactionList
-        rows={rows}
-        onSelect={id => {
-          const row = rows.find(r => r.id === id);
-          if (row && row.kind !== 'transfer') {
-            openEdit({
-              id: row.id,
-              kind: row.kind,
-              amountCents: row.amountCents,
-              categoryId: row.categoryId,
-              note: row.note,
-            });
-          }
-        }}
-        onDelete={confirmDelete}
-      />
-      <EntryActions onExpense={() => openSheet('expense')} onIncome={() => openSheet('income')} />
-      <EntrySheet db={db} />
+
+      <EntrySheet db={db} presentation="page" />
       <SettingsSheet
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         db={db}
-        onOpenBudgets={() => {
-          setSettingsOpen(false);
-          setBudgetsOpen(true);
-        }}
-        onOpenRecurring={() => {
-          setSettingsOpen(false);
-          setRecurringOpen(true);
-        }}
-        onOpenNotifications={() => {
-          setSettingsOpen(false);
-          setNotificationsOpen(true);
-        }}
+        presentation="page"
+        onOpenNotifications={() => { setSettingsOpen(false); setNotificationsOpen(true); }}
       />
-      <BudgetsSheet isOpen={budgetsOpen} onClose={() => setBudgetsOpen(false)} db={db} />
-      <RecurringSheet isOpen={recurringOpen} onClose={() => setRecurringOpen(false)} db={db} />
       <NotificationsSheet
         isOpen={notificationsOpen}
-        onClose={() => setNotificationsOpen(false)}
+        onClose={() => { setNotificationsOpen(false); setSettingsOpen(true); }}
+        presentation="page"
       />
     </SafeAreaView>
+  );
+}
+
+function MovementsPage({
+  rows,
+  period,
+  anchorMs,
+  canGoPrev,
+  onPeriodChange,
+  onShift,
+  onOpenSettings,
+  onEdit,
+  onDelete,
+  onAdd,
+}: {
+  rows: TxRowData[];
+  period: PeriodKind;
+  anchorMs: number;
+  canGoPrev: boolean;
+  onPeriodChange: (period: PeriodKind) => void;
+  onShift: (direction: 1 | -1) => void;
+  onOpenSettings: () => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onAdd: () => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const { t } = useTranslation();
+  const [kind, setKind] = useState<MovementKind>('all');
+  const [search, setSearch] = useState('');
+  const filtered = rows.filter(row =>
+    (kind === 'all' || row.kind === kind) &&
+    `${row.title} ${row.note}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
+  );
+  const filters: { value: MovementKind; label: string }[] = [
+    { value: 'all', label: t('movement.all') },
+    { value: 'income', label: t('movement.incomes') },
+    { value: 'expense', label: t('movement.expenses') },
+  ];
+
+  return (
+    <View style={styles.page}>
+      <TopBar userName="" title={t('nav.movements')} onOpenSettings={onOpenSettings} />
+      <PeriodFilter
+        period={period}
+        anchorMs={anchorMs}
+        onPeriodChange={onPeriodChange}
+        onShift={onShift}
+        canGoPrev={canGoPrev}
+      />
+      <TextInput
+        testID="movement-search"
+        value={search}
+        onChangeText={setSearch}
+        placeholder={`${t('movement.search')} · ${t('movement.searchPlaceholder')}`}
+        placeholderTextColor={palette.muted}
+        style={styles.searchInput}
+      />
+      <View style={styles.filterRow}>
+        {filters.map(filter => {
+          const active = kind === filter.value;
+          return (
+            <Pressable
+              key={filter.value}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setKind(filter.value)}>
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{filter.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <ScrollView contentContainerStyle={styles.movementList}>
+        {filtered.map(row => <TxRow key={row.id} row={row} onPress={onEdit} onDelete={onDelete} />)}
+        {!filtered.length ? <Text style={styles.emptyText}>{t('list.empty')}</Text> : null}
+        <Pressable style={styles.primaryButton} onPress={onAdd}>
+          <Text style={styles.primaryButtonText}>{`＋ ${t('movement.register')}`}</Text>
+        </Pressable>
+        <Pressable style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>{t('movement.summary')}</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+function BottomTabs({ active, onChange }: { active: MainTab; onChange: (tab: MainTab) => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const { t } = useTranslation();
+  const tabs: { id: MainTab; label: string }[] = [
+    { id: 'home', label: t('nav.home') },
+    { id: 'movements', label: t('nav.movements') },
+    { id: 'plan', label: t('nav.plan') },
+    { id: 'recurring', label: t('nav.recurring') },
+  ];
+  return (
+    <View style={styles.bottomTabs}>
+      {tabs.map(tab => (
+        <Pressable
+          key={tab.id}
+          testID={`tab-${tab.id}`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: active === tab.id }}
+          style={[styles.tabButton, active === tab.id && styles.tabButtonActive]}
+          onPress={() => onChange(tab.id)}>
+          <Text style={[styles.tabLabel, active === tab.id && styles.tabLabelActive]}>{tab.label}</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }

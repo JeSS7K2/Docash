@@ -22,12 +22,13 @@ interface BudgetConfigSheetProps {
   onClose: () => void;
   db: Database;
   category: Category | null;
+  presentation?: 'sheet' | 'page';
 }
 
 const PERIODS: BudgetPeriod[] = ['daily', 'weekly', 'monthly'];
 
 /** Configuración del presupuesto de UNA categoría (modal dedicado). */
-export default function BudgetConfigSheet({ isOpen, onClose, db, category }: BudgetConfigSheetProps) {
+export default function BudgetConfigSheet({ isOpen, onClose, db, category, presentation = 'sheet' }: BudgetConfigSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -107,7 +108,8 @@ export default function BudgetConfigSheet({ isOpen, onClose, db, category }: Bud
       title={title}
       accent={palette.budget}
       accentSoft={palette.budgetSoft}
-      closeTestID="budget-config-close">
+      closeTestID="budget-config-close"
+      presentation={presentation}>
       <Box style={styles.configBody}>
         <Text style={ui.section}>{t('budgets.set')}</Text>
         <TextInput

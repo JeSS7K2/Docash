@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, Text as NativeText, View } from 'react-native';
 import {
   Actionsheet,
   ActionsheetBackdrop,
@@ -16,7 +16,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useThemedStyles } from '../../theme';
+import { usePalette, useThemedStyles } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { makeStyles } from './SheetScaffold.styles';
 
 const CLOSE_THRESHOLD = 140;
@@ -34,6 +35,7 @@ interface SheetScaffoldProps {
   fixedContent?: React.ReactNode;
   closeTestID?: string;
   scrollTestID?: string;
+  presentation?: 'sheet' | 'page';
 }
 
 /**
@@ -49,8 +51,12 @@ export default function SheetScaffold({
   children,
   fixedContent,
   scrollTestID,
+  closeTestID,
+  presentation = 'sheet',
 }: SheetScaffoldProps) {
   const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const { t } = useTranslation();
 
   const translateY = useSharedValue(0);
   useEffect(() => {
@@ -58,6 +64,17 @@ export default function SheetScaffold({
       translateY.value = 0;
     }
   }, [isOpen, translateY]);
+
+  useEffect(() => {
+    if (presentation !== 'page' || !isOpen) {
+      return;
+    }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isOpen, onClose, presentation]);
 
   const pan = Gesture.Pan()
     .onUpdate(event => {
@@ -78,11 +95,39 @@ export default function SheetScaffold({
     });
   const sheetAnim = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
+  if (presentation === 'page' && !isOpen) {
+    return null;
+  }
+
+  if (presentation === 'page') {
+    return (
+      <View style={[styles.page, { backgroundColor: palette.paper }]}>
+        <View style={styles.pageHeader}>
+          <NativeText style={[styles.pageTitle, { color: palette.ink }]}>{title}</NativeText>
+          <Pressable
+            testID={closeTestID}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+            onPress={onClose}>
+            <NativeText style={[styles.pageBack, { color: palette.muted }]}>{`‹ ${t('common.back')}`}</NativeText>
+          </Pressable>
+        </View>
+        {fixedContent}
+        <ScrollView
+          testID={scrollTestID}
+          contentContainerStyle={styles.pageScroll}
+          keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose}>
       <ActionsheetBackdrop
         testID="sheet-backdrop"
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.46)' }]}
+        style={styles.backdrop}
       />
       <ActionsheetContent style={styles.content}>
         <Animated.View style={[styles.sheetInner, sheetAnim]}>

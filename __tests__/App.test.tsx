@@ -52,6 +52,6 @@ describe('HomeScreen (Fase 1)', () => {
     await waitFor(() => expect(screen.getByTestId('balance-total')).toBeTruthy());
     expect(screen.getByTestId('balance-total')).toHaveTextContent('-$10.00');
     expect(screen.getByTestId('account-name')).toHaveTextContent(/Cash/);
-    expect(screen.getByText('Balance total')).toBeTruthy();
+    expect(screen.getByText('Current balance')).toBeTruthy();
   });
 });

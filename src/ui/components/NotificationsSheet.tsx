@@ -11,9 +11,10 @@ import Toggle from './Toggle';
 interface NotificationsSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  presentation?: 'sheet' | 'page';
 }
 
-export default function NotificationsSheet({ isOpen, onClose }: NotificationsSheetProps) {
+export default function NotificationsSheet({ isOpen, onClose, presentation = 'sheet' }: NotificationsSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const palette = usePalette();
   const { t } = useTranslation();
@@ -25,7 +26,8 @@ export default function NotificationsSheet({ isOpen, onClose }: NotificationsShe
       onClose={onClose}
       title={t('notif.title')}
       accent={palette.primary}
-      accentSoft={palette.primarySoft}>
+      accentSoft={palette.primarySoft}
+      presentation={presentation}>
       <Box style={ui.body}>
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.daily')}</Text>
