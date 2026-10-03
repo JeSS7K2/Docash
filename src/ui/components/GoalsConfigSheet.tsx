@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Switch, TextInput } from 'react-native';
+import { TextInput } from 'react-native';
 import { Box, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import { createGoal } from '../../db/goals';
@@ -12,6 +12,8 @@ import { usePalette, useThemedStyles } from '../../theme';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
 import { makeStyles } from './BudgetsSheet.styles';
+import Toggle from './Toggle';
+import { useToast } from '../Toast';
 
 interface GoalsConfigSheetProps {
   isOpen: boolean;
@@ -29,6 +31,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t } = useTranslation();
+  const { showError } = useToast();
   const currency = useSettings(s => s.currency);
   const rate = useSettings(s => s.exchangeRate);
 
@@ -76,13 +79,18 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
         return;
       }
     }
-    await createGoal(db, { name, targetCents, deadline });
-    playSound('confirm');
-    setName('');
-    setAmountText('');
-    setHasDeadline(false);
-    setError('');
-    onClose();
+    try {
+      await createGoal(db, { name, targetCents, deadline });
+      playSound('confirm');
+      setName('');
+      setAmountText('');
+      setHasDeadline(false);
+      setError('');
+      onClose();
+    } catch (error) {
+      playSound('error');
+      showError(error, 'errors.goalSave');
+    }
   };
 
   return (
@@ -115,7 +123,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db }: GoalsConfigShe
         />
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('goals.deadline')}</Text>
-          <Switch value={hasDeadline} onValueChange={setHasDeadline} />
+          <Toggle value={hasDeadline} onValueChange={setHasDeadline} />
         </Box>
         {hasDeadline ? (
           <Box style={styles.periodRow}>

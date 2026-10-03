@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Share, Switch, TextInput } from 'react-native';
+import { Share, TextInput } from 'react-native';
 import { Box, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import { exportData, importData } from '../../db/backup';
@@ -21,6 +21,8 @@ import { usePalette, useThemedStyles } from '../../theme';
 import PinForm, { type PinMode } from './PinForm';
 import SheetScaffold from './SheetScaffold';
 import { makeStyles } from './SettingsSheet.styles';
+import Toggle from './Toggle';
+import { useToast } from '../Toast';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -42,6 +44,7 @@ export default function SettingsSheet({
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t } = useTranslation();
+  const { showError, showToast } = useToast();
   const s = useSettings();
   const [importText, setImportText] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -70,12 +73,16 @@ export default function SettingsSheet({
   };
 
   const onToggleBiometric = async (value: boolean) => {
-    if (value) {
-      await enableBiometric();
-      s.setBiometricEnabled(true);
-    } else {
-      await disableBiometric();
-      s.setBiometricEnabled(false);
+    try {
+      if (value) {
+        await enableBiometric();
+        s.setBiometricEnabled(true);
+      } else {
+        await disableBiometric();
+        s.setBiometricEnabled(false);
+      }
+    } catch (error) {
+      showError(error, 'errors.biometric');
     }
   };
 
@@ -85,7 +92,7 @@ export default function SettingsSheet({
       await Share.share({ title: 'Docash backup', message: json });
       playSound('success');
     } catch (error) {
-      console.error('[backup] export failed', error);
+      showError(error, 'errors.backupExport');
     }
   };
 
@@ -97,10 +104,10 @@ export default function SettingsSheet({
       const counts = await importData(db, importText);
       setImportText(null);
       playSound('success');
-      Alert.alert(t('settings.importDone'), JSON.stringify(counts));
+      showToast(`${t('settings.importDone')}: ${counts.transactions}`, 'success');
     } catch (error) {
       playSound('error');
-      Alert.alert(t('settings.importError'), String(error));
+      showError(error, 'errors.backupImport');
     }
   };
 
@@ -171,11 +178,11 @@ export default function SettingsSheet({
         <Text style={styles.section}>{t('settings.sounds')}</Text>
         <Box style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>{t('settings.sounds')}</Text>
-          <Switch testID="sound-toggle" value={s.soundEnabled} onValueChange={s.setSoundEnabled} />
+          <Toggle testID="sound-toggle" value={s.soundEnabled} onValueChange={s.setSoundEnabled} />
         </Box>
         <Box style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>{t('settings.soundKeypad')}</Text>
-          <Switch
+          <Toggle
             testID="sound-keypad-toggle"
             value={s.soundKeypad}
             disabled={!s.soundEnabled}
@@ -210,7 +217,7 @@ export default function SettingsSheet({
           <>
             <Box style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>{t('security.pinLock')}</Text>
-              <Switch
+            <Toggle
                 testID="pin-toggle"
                 value={s.securityEnabled}
                 onValueChange={onToggleSecurity}
@@ -234,7 +241,7 @@ export default function SettingsSheet({
             ) : null}
             <Box style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>{t('security.biometrics')}</Text>
-              <Switch
+              <Toggle
                 testID="biometric-toggle"
                 value={s.biometricEnabled}
                 disabled={!s.securityEnabled || !bioAvailable}

@@ -25,6 +25,7 @@ import { CategoryIcon } from '../icons';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
 import { makeStyles } from './RecurringSheet.styles';
+import { useToast } from '../Toast';
 
 interface RecurringSheetProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
   const palette = usePalette();
   const money = useMoney();
   const { t, locale } = useTranslation();
+  const { showError, showToast } = useToast();
   const currency = useSettings(s => s.currency);
   const rate = useSettings(s => s.exchangeRate);
 
@@ -78,7 +80,7 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
       return;
     }
     setPhase('list');
-    reload().catch(error => console.error('[recurring] load failed', error));
+    reload().catch(error => showError(error, 'errors.recurringLoad'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, db]);
 
@@ -115,43 +117,51 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
 
   const add = async () => {
     if (!account || !categoryId || !amountText) {
+      showToast(t('errors.recurringRequired'));
       return;
     }
     let amountCents = 0;
     try {
       amountCents = displayToBaseCents(toCents(amountText), currency, rate);
     } catch {
+      showToast(t('errors.invalidAmount'));
       return;
     }
-    const created = await createRecurringRule(db, {
-      accountId: account.id,
-      categoryId,
-      kind,
-      amountCents,
-      frequency,
-      scheduleDay: frequency === 'weekly' || frequency === 'monthly' ? scheduleDay : undefined,
-    });
-    const { reminderHour, locale: loc } = useSettings.getState();
-    const notifyAt = recurringReminderAt(created.nextRun, reminderHour);
-    if (notifyAt > Date.now()) {
-      const key = `category.${categoryId}` as TranslationKey;
-      const translated = translate(loc, key);
-      const name = translated === key ? labelFor(categoryId) : translated;
-      await scheduleRecurringReminder(
-        created.id,
-        notifyAt,
-        'Docash',
-        translate(loc, 'reminders.recurringBody', { name }),
-      );
+    try {
+      const created = await createRecurringRule(db, {
+        accountId: account.id,
+        categoryId,
+        kind,
+        amountCents,
+        frequency,
+        scheduleDay: frequency === 'weekly' || frequency === 'monthly' ? scheduleDay : undefined,
+      });
+      const { reminderHour, locale: loc } = useSettings.getState();
+      const notifyAt = recurringReminderAt(created.nextRun, reminderHour);
+      if (notifyAt > Date.now()) {
+        const key = `category.${categoryId}` as TranslationKey;
+        const translated = translate(loc, key);
+        const name = translated === key ? labelFor(categoryId) : translated;
+        await scheduleRecurringReminder(
+          created.id,
+          notifyAt,
+          'Docash',
+          translate(loc, 'reminders.recurringBody', { name }),
+        );
+      }
+      resetForm();
+      setPhase('list');
+      await reload();
+    } catch (error) {
+      showError(error, 'errors.recurringSave');
     }
-    resetForm();
-    setPhase('list');
-    await reload();
   };
 
   const remove = (rule: RecurringRule) => {
     cancelRecurringReminder(rule.id);
-    deleteRecurringRule(db, rule.id).then(reload);
+    deleteRecurringRule(db, rule.id)
+      .then(reload)
+      .catch(error => showError(error, 'errors.recurringDelete'));
   };
 
   return (
@@ -167,7 +177,12 @@ export default function RecurringSheet({ isOpen, onClose, db }: RecurringSheetPr
             {rules.length === 0 ? <Text style={ui.rowMeta}>{t('recurring.empty')}</Text> : null}
             {rules.map(rule => (
               <Box key={rule.id} style={ui.row}>
-                <CategoryIcon id={rule.categoryId} color={palette.ink} size={20} />
+                <CategoryIcon
+                  id={rule.categoryId}
+                  icon={cats.find(category => category.id === rule.categoryId)?.icon}
+                  color={palette.ink}
+                  size={20}
+                />
                 <Box style={ui.spacer}>
                   <Text style={ui.rowTitle}>{labelFor(rule.categoryId)}</Text>
                   <Text style={ui.rowMeta}>

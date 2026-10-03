@@ -20,6 +20,7 @@ import GoalsConfigSheet from './GoalsConfigSheet';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
 import { makeStyles } from './BudgetsSheet.styles';
+import { useToast } from '../Toast';
 
 interface BudgetsSheetProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
   const palette = usePalette();
   const money = useMoney();
   const { t, locale } = useTranslation();
+  const { showError } = useToast();
 
   const [cats, setCats] = useState<Category[]>([]);
   const [budgetMap, setBudgetMap] = useState<Record<string, Budget>>({});
@@ -75,7 +77,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
     if (!isOpen) {
       return;
     }
-    load().catch(error => console.error('[budgets] load failed', error));
+    load().catch(error => showError(error, 'errors.budgetsLoad'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, db]);
 
@@ -110,7 +112,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
                 testID={`budget-row-${cat.id}`}
                 style={styles.rowButton}
                 onPress={() => setConfigCat(cat)}>
-                <CategoryIcon id={cat.id} color={palette.ink} size={20} />
+                <CategoryIcon id={cat.id} icon={cat.icon} color={palette.ink} size={20} />
                 <Box style={ui.spacer}>
                   <Text style={ui.rowTitle}>{label}</Text>
                   {b > 0 ? (
@@ -165,7 +167,9 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
                     <Pressable
                       testID={`goal-delete-${goal.id}`}
                       onPress={() => {
-                        removeGoal(db, goal.id).then(load);
+                        removeGoal(db, goal.id)
+                          .then(load)
+                          .catch(error => showError(error, 'errors.goalDelete'));
                       }}>
                       <Trash2 width={18} height={18} color={palette.expense} strokeWidth={2} />
                     </Pressable>
@@ -201,7 +205,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
         db={db}
         onClose={() => {
           setConfigCat(null);
-          load().catch(() => undefined);
+          load().catch(error => showError(error, 'errors.budgetsLoad'));
         }}
       />
       <GoalsConfigSheet
@@ -209,7 +213,7 @@ export default function BudgetsSheet({ isOpen, onClose, db }: BudgetsSheetProps)
         db={db}
         onClose={() => {
           setGoalConfigOpen(false);
-          load().catch(() => undefined);
+          load().catch(error => showError(error, 'errors.budgetsLoad'));
         }}
       />
     </>

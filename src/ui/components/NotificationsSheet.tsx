@@ -1,11 +1,12 @@
 import React from 'react';
-import { Switch, TextInput } from 'react-native';
+import { TextInput } from 'react-native';
 import { Box, Text } from '@gluestack-ui/themed';
 import { useTranslation } from '../../i18n';
 import { useSettings } from '../../state/useSettings';
 import { usePalette, useThemedStyles } from '../../theme';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
+import Toggle from './Toggle';
 
 interface NotificationsSheetProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export default function NotificationsSheet({ isOpen, onClose }: NotificationsShe
       <Box style={ui.body}>
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.daily')}</Text>
-          <Switch value={s.reminderEnabled} onValueChange={s.setReminderEnabled} />
+          <Toggle value={s.reminderEnabled} onValueChange={s.setReminderEnabled} />
         </Box>
         {s.reminderEnabled ? (
           <>
@@ -50,27 +51,27 @@ export default function NotificationsSheet({ isOpen, onClose }: NotificationsShe
 
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.recurring')}</Text>
-          <Switch value={s.notifyRecurring} onValueChange={s.setNotifyRecurring} />
+          <Toggle value={s.notifyRecurring} onValueChange={s.setNotifyRecurring} />
         </Box>
 
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.budget')}</Text>
-          <Switch value={s.notifyBudget} onValueChange={s.setNotifyBudget} />
+          <Toggle value={s.notifyBudget} onValueChange={s.setNotifyBudget} />
         </Box>
 
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.goal')}</Text>
-          <Switch value={s.notifyGoal} onValueChange={s.setNotifyGoal} />
+          <Toggle value={s.notifyGoal} onValueChange={s.setNotifyGoal} />
         </Box>
 
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.summary')}</Text>
-          <Switch value={s.notifySummary} onValueChange={s.setNotifySummary} />
+          <Toggle value={s.notifySummary} onValueChange={s.setNotifySummary} />
         </Box>
 
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('notif.inactive')}</Text>
-          <Switch value={s.notifyInactive} onValueChange={s.setNotifyInactive} />
+          <Toggle value={s.notifyInactive} onValueChange={s.setNotifyInactive} />
         </Box>
         {s.notifyInactive ? (
           <>

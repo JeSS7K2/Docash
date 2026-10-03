@@ -7,11 +7,19 @@ interface EntryState {
   kind: EntryKind;
   buffer: string;
   note: string;
+  drafts: Record<EntryKind, string>;
   /** id de la transacción en edición, null = alta nueva. */
   editingId: string | null;
+  editingCategoryId: string | null;
   openSheet: (kind: EntryKind) => void;
-  openEdit: (input: { id: string; kind: EntryKind; amountCents: number; note?: string }) => void;
-  closeSheet: () => void;
+  openEdit: (input: {
+    id: string;
+    kind: EntryKind;
+    amountCents: number;
+    categoryId?: string;
+    note?: string;
+  }) => void;
+  closeSheet: (options?: { preserveDraft?: boolean }) => void;
   pressKey: (key: NumpadKey) => void;
   setNote: (note: string) => void;
 }
@@ -22,11 +30,41 @@ export const useEntry = create<EntryState>()(set => ({
   kind: 'expense',
   buffer: INITIAL_BUFFER,
   note: '',
+  drafts: { expense: INITIAL_BUFFER, income: INITIAL_BUFFER },
   editingId: null,
-  openSheet: kind => set({ open: true, kind, buffer: INITIAL_BUFFER, note: '', editingId: null }),
-  openEdit: ({ id, kind, amountCents, note }) =>
-    set({ open: true, kind, buffer: centsToBuffer(amountCents), note: note ?? '', editingId: id }),
-  closeSheet: () => set({ open: false, buffer: INITIAL_BUFFER, note: '', editingId: null }),
+  editingCategoryId: null,
+  openSheet: kind =>
+    set(state => ({
+      open: true,
+      kind,
+      buffer: state.drafts[kind],
+      note: '',
+      editingId: null,
+      editingCategoryId: null,
+    })),
+  openEdit: ({ id, kind, amountCents, categoryId, note }) =>
+    set({
+      open: true,
+      kind,
+      buffer: centsToBuffer(amountCents),
+      note: note ?? '',
+      editingId: id,
+      editingCategoryId: categoryId ?? null,
+    }),
+  closeSheet: ({ preserveDraft = true } = {}) =>
+    set(state => ({
+      open: false,
+      drafts:
+        preserveDraft && !state.editingId
+          ? { ...state.drafts, [state.kind]: state.buffer }
+          : preserveDraft
+            ? state.drafts
+            : { ...state.drafts, [state.kind]: INITIAL_BUFFER },
+      buffer: INITIAL_BUFFER,
+      note: '',
+      editingId: null,
+      editingCategoryId: null,
+    })),
   pressKey: key => set(state => ({ buffer: applyKey(state.buffer, key) })),
   setNote: note => set({ note: note.slice(0, 280) }),
 }));

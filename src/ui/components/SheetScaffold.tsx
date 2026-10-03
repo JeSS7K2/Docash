@@ -16,8 +16,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { BlurView } from '@react-native-community/blur';
-import { usePalette, useThemeName, useThemedStyles } from '../../theme';
+import { useThemedStyles } from '../../theme';
 import { makeStyles } from './SheetScaffold.styles';
 
 const CLOSE_THRESHOLD = 140;
@@ -32,12 +31,13 @@ interface SheetScaffoldProps {
   /** Fondo suave de la cabecera. */
   accentSoft: string;
   children: React.ReactNode;
+  fixedContent?: React.ReactNode;
   closeTestID?: string;
   scrollTestID?: string;
 }
 
 /**
- * Cascarón común de modales: fondo difuminado, cabecera con acento propio,
+ * Cascarón común de modales: backdrop gestionado por Gluestack, cabecera con acento propio,
  * cierre por X / backdrop / botón atrás / deslizar hacia abajo.
  */
 export default function SheetScaffold({
@@ -47,11 +47,10 @@ export default function SheetScaffold({
   accent,
   accentSoft,
   children,
+  fixedContent,
   scrollTestID,
 }: SheetScaffoldProps) {
   const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
-  const themeName = useThemeName();
 
   const translateY = useSharedValue(0);
   useEffect(() => {
@@ -81,14 +80,10 @@ export default function SheetScaffold({
 
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose}>
-      <BlurView
-        style={StyleSheet.absoluteFill}
-        blurType={themeName === 'dark' ? 'dark' : 'light'}
-        blurAmount={18}
-        reducedTransparencyFallbackColor={palette.overlay}
-        pointerEvents="none"
+      <ActionsheetBackdrop
+        testID="sheet-backdrop"
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.46)' }]}
       />
-      <ActionsheetBackdrop style={styles.backdrop} />
       <ActionsheetContent style={styles.content}>
         <Animated.View style={[styles.sheetInner, sheetAnim]}>
           <GestureDetector gesture={pan}>
@@ -99,6 +94,7 @@ export default function SheetScaffold({
               </Box>
             </View>
           </GestureDetector>
+          {fixedContent}
           <ActionsheetScrollView
             testID={scrollTestID}
             contentContainerStyle={styles.scrollBody}

@@ -15,6 +15,7 @@ import { usePalette, useThemedStyles } from '../../theme';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
 import { makeStyles } from './BudgetsSheet.styles';
+import { useToast } from '../Toast';
 
 interface BudgetConfigSheetProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export default function BudgetConfigSheet({ isOpen, onClose, db, category }: Bud
   const palette = usePalette();
   const money = useMoney();
   const { t } = useTranslation();
+  const { showError } = useToast();
   const currency = useSettings(s => s.currency);
   const rate = useSettings(s => s.exchangeRate);
 
@@ -82,12 +84,20 @@ export default function BudgetConfigSheet({ isOpen, onClose, db, category }: Bud
   const over = baseCents > 0 && spent > baseCents;
 
   const save = async () => {
-    await setBudget(db, category.id, baseCents, period);
-    onClose();
+    try {
+      await setBudget(db, category.id, baseCents, period);
+      onClose();
+    } catch (error) {
+      showError(error, 'errors.budgetSave');
+    }
   };
   const remove = async () => {
-    await removeBudget(db, category.id);
-    onClose();
+    try {
+      await removeBudget(db, category.id);
+      onClose();
+    } catch (error) {
+      showError(error, 'errors.budgetDelete');
+    }
   };
 
   return (

@@ -12,6 +12,7 @@ import { makeStyles } from './TxRow.styles';
 export interface TxRowData {
   id: string;
   categoryId?: string;
+  icon?: string;
   title: string;
   note: string;
   occurredOn: number;
@@ -43,7 +44,7 @@ function TxRow({ row, onPress, onDelete }: TxRowProps) {
       accessibilityRole="button"
       onPress={onPress ? () => onPress(row.id) : undefined}>
       <View style={styles.iconWrap}>
-        <CategoryIcon id={row.categoryId} color={palette.ink} size={20} />
+        <CategoryIcon id={row.categoryId} icon={row.icon} color={palette.ink} size={20} />
       </View>
       <View style={styles.meta}>
         <Text style={styles.title} numberOfLines={1}>

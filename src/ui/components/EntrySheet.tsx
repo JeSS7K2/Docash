@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Switch, TextInput, Vibration } from 'react-native';
+import { Alert, TextInput, Vibration } from 'react-native';
 import { Divider, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import { createTransaction, deleteTransaction, updateTransaction } from '../../db/operations';
+import { createCategory } from '../../db/categories';
 import { createRecurringRule } from '../../db/recurring';
 import { recurringReminderAt, scheduleRecurringReminder } from '../../notifications/reminders';
 import { toCents, formatCents } from '../../utils/currency';
@@ -12,9 +13,12 @@ import { useEntry } from '../../state/useEntry';
 import { useSettings } from '../../state/useSettings';
 import { playSound } from '../../services/sound';
 import { usePalette, useThemedStyles } from '../../theme';
-import CategoryGrid from './CategoryGrid';
+import { useToast } from '../Toast';
+import { CategoryIcon, type FeatherName } from '../icons';
+import CategoryPickerModal from './CategoryPickerModal';
 import Numpad from './Numpad';
 import SheetScaffold from './SheetScaffold';
+import Toggle from './Toggle';
 import { makeStyles } from './EntrySheet.styles';
 import type Account from '../../db/models/Account';
 import type Category from '../../db/models/Category';
@@ -24,23 +28,36 @@ interface EntrySheetProps {
 }
 
 /**
- * Flujo de 3 segundos: monto + categoría = commit. Identidad por tipo
- * (gasto rojo / ingreso verde) vía SheetScaffold.
+ * Flujo en dos pasos: monto + categoría, después confirmación explícita.
  */
 export default function EntrySheet({ db }: EntrySheetProps) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t, locale } = useTranslation();
   const currency = useSettings(s => s.currency);
-  const { open, kind, buffer, note, editingId, closeSheet, pressKey, setNote } = useEntry();
+  const {
+    open,
+    kind,
+    buffer,
+    note,
+    editingId,
+    editingCategoryId,
+    closeSheet,
+    pressKey,
+    setNote,
+  } = useEntry();
+  const { showError, showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [repeat, setRepeat] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       setRepeat(false);
+      setSelectedCategoryId(editingId ? editingCategoryId : null);
     }
-  }, [open]);
+  }, [editingCategoryId, editingId, open]);
 
   useEffect(() => {
     if (!open) {
@@ -55,11 +72,11 @@ export default function EntrySheet({ db }: EntrySheetProps) {
           setCategories(cats.filter(c => c.id !== 'cat_other_inc'));
         }
       })
-      .catch(error => console.error('[entry] categories failed', error));
+      .catch(error => showError(error, 'errors.categoriesLoad'));
     return () => {
       cancelled = true;
     };
-  }, [db, open, kind]);
+  }, [db, kind, open, showError]);
 
   const commit = async (categoryId: string) => {
     try {
@@ -70,6 +87,7 @@ export default function EntrySheet({ db }: EntrySheetProps) {
         const accounts = await db.get<Account>('accounts').query().fetch();
         const account = accounts[0];
         if (!account) {
+          showToast(t('errors.noAccount'));
           return;
         }
         await createTransaction(db, { accountId: account.id, categoryId, kind, amountCents, note });
@@ -101,10 +119,10 @@ export default function EntrySheet({ db }: EntrySheetProps) {
       }
       playSound(editingId ? 'confirm' : kind);
       Vibration.vibrate([0, 25, 50, 25]);
-      closeSheet();
+      closeSheet({ preserveDraft: false });
     } catch (error) {
       playSound('error');
-      console.error('[entry] commit failed', error);
+      showError(error, 'errors.entrySave');
     }
   };
 
@@ -120,11 +138,26 @@ export default function EntrySheet({ db }: EntrySheetProps) {
         onPress: () => {
           playSound('delete');
           deleteTransaction(db, editingId)
-            .then(closeSheet)
-            .catch(error => console.error('[entry] delete failed', error));
+            .then(() => closeSheet({ preserveDraft: false }))
+            .catch(error => showError(error, 'errors.entryDelete'));
         },
       },
     ]);
+  };
+
+  const createCustomCategory = async (name: string, icon: FeatherName): Promise<boolean> => {
+    try {
+      const category = await createCategory(db, { name, icon, kind });
+      setCategories(current =>
+        [...current, category].sort((a, b) => a.sortOrder - b.sortOrder),
+      );
+      setSelectedCategoryId(category.id);
+      showToast(t('entry.categoryCreated'), 'success');
+      return true;
+    } catch (error) {
+      showError(error, 'errors.categoryCreate');
+      return false;
+    }
   };
 
   const accent = kind === 'income' ? palette.income : palette.expense;
@@ -134,47 +167,101 @@ export default function EntrySheet({ db }: EntrySheetProps) {
     : kind === 'expense'
       ? t('entry.expense')
       : t('entry.income');
+  const selectedCategory = categories.find(category => category.id === selectedCategoryId);
+  const selectedLabel = selectedCategory
+    ? (() => {
+        const key = `category.${selectedCategory.id}` as TranslationKey;
+        const translated = t(key);
+        return translated === key ? selectedCategory.name : translated;
+      })()
+    : t('entry.chooseCategoryPlaceholder');
 
   return (
-    <SheetScaffold
-      isOpen={open}
-      onClose={closeSheet}
-      title={title}
-      accent={accent}
-      accentSoft={accentSoft}
-      closeTestID="entry-close">
-      <Text style={[styles.amount, { color: accent }]} testID="entry-amount">
-        {formatBuffer(buffer, currency, locale)}
-      </Text>
-      <TextInput
-        testID="entry-note"
-        style={styles.noteInput}
-        value={note}
-        onChangeText={setNote}
-        placeholder={t('entry.note')}
-        placeholderTextColor={palette.muted}
-        maxLength={280}
-      />
-      <Numpad onKey={pressKey} />
-      {kind === 'income' && !editingId ? (
-        <Pressable style={styles.repeatRow}>
-          <Text style={styles.repeatLabel}>{t('entry.repeat')}</Text>
-          <Switch value={repeat} onValueChange={setRepeat} />
-        </Pressable>
-      ) : null}
-      <Divider style={styles.divider} />
-      <CategoryGrid categories={categories} onSelect={commit} />
-      {editingId ? (
+    <>
+      <SheetScaffold
+        isOpen={open && !pickerOpen}
+        onClose={closeSheet}
+        title={title}
+        accent={accent}
+        accentSoft={accentSoft}
+        closeTestID="entry-close">
+        <Text style={[styles.amount, { color: accent }]} testID="entry-amount">
+          {formatBuffer(buffer, currency, locale)}
+        </Text>
+        <Text style={styles.stepHint}>{t('entry.chooseCategory')}</Text>
+        <TextInput
+          testID="entry-note"
+          style={styles.noteInput}
+          value={note}
+          onChangeText={setNote}
+          placeholder={t('entry.note')}
+          placeholderTextColor={palette.muted}
+          maxLength={280}
+        />
+        <Numpad onKey={pressKey} />
+        {kind === 'income' && !editingId ? (
+          <Pressable style={styles.repeatRow}>
+            <Text style={styles.repeatLabel}>{t('entry.repeat')}</Text>
+            <Toggle value={repeat} onValueChange={setRepeat} />
+          </Pressable>
+        ) : null}
+        <Divider style={styles.divider} />
+        <Text style={styles.fieldLabel}>
+          {kind === 'income' ? t('entry.selectIncomeCategory') : t('entry.selectCategory')}
+        </Text>
         <Pressable
-          testID="entry-delete"
-          style={styles.deleteButton}
+          testID="category-select"
           accessibilityRole="button"
-          accessibilityLabel={t('entry.delete')}
-          onPress={confirmDelete}>
-          <Text style={styles.deleteText}>{t('entry.delete')}</Text>
+          accessibilityLabel={selectedLabel}
+          style={styles.categorySelect}
+          onPress={() => setPickerOpen(true)}>
+          {selectedCategory ? (
+            <CategoryIcon
+              id={selectedCategory.id}
+              icon={selectedCategory.icon}
+              color={accent}
+              size={22}
+            />
+          ) : null}
+          <Text style={[styles.categorySelectText, !selectedCategory && styles.placeholder]}>
+            {selectedLabel}
+          </Text>
+          <Text style={[styles.chevron, { color: accent }]}>⌄</Text>
         </Pressable>
-      ) : null}
-    </SheetScaffold>
+        <Pressable
+          testID="entry-submit"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !selectedCategoryId }}
+          disabled={!selectedCategoryId}
+          style={[
+            styles.submitButton,
+            { backgroundColor: accent },
+            !selectedCategoryId && styles.submitButtonDisabled,
+          ]}
+          onPress={() => selectedCategoryId && commit(selectedCategoryId)}>
+          <Text style={styles.submitText}>{t('entry.submit')}</Text>
+        </Pressable>
+        {editingId ? (
+          <Pressable
+            testID="entry-delete"
+            style={styles.deleteButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('entry.delete')}
+            onPress={confirmDelete}>
+            <Text style={styles.deleteText}>{t('entry.delete')}</Text>
+          </Pressable>
+        ) : null}
+      </SheetScaffold>
+      <CategoryPickerModal
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        categories={categories}
+        selectedId={selectedCategoryId}
+        kind={kind}
+        onSelect={setSelectedCategoryId}
+        onCreate={createCustomCategory}
+      />
+    </>
   );
 }
 

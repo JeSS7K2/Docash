@@ -3,7 +3,6 @@ import { radius, spacing, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    backdrop: { backgroundColor: c.overlay },
     content: {
       backgroundColor: c.paper,
       borderTopLeftRadius: 24,

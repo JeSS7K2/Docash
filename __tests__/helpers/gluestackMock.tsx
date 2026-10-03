@@ -18,3 +18,15 @@ export const ActionsheetDragIndicator = View;
 export const ActionsheetDragIndicatorWrapper = View;
 export const ActionsheetScrollView = View;
 export const Divider = View;
+export const Modal = ({
+  isOpen,
+  children,
+}: {
+  isOpen?: boolean;
+  children?: React.ReactNode;
+}) => (isOpen ? <View>{children}</View> : null);
+export const ModalBackdrop = View;
+export const ModalContent = View;
+export const ModalHeader = View;
+export const ModalBody = View;
+export const ModalFooter = View;

@@ -9,6 +9,7 @@ import { useThemeName } from './src/theme';
 import { useSettings } from './src/state/useSettings';
 import HomeScreen from './src/ui/HomeScreen';
 import LockScreen from './src/ui/LockScreen';
+import { ToastProvider } from './src/ui/Toast';
 
 function Root(): React.JSX.Element {
   const theme = useThemeName();
@@ -26,9 +27,11 @@ function Root(): React.JSX.Element {
   return (
     <GluestackUIProvider config={gluestackUIConfig} colorMode={theme}>
       <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
-      <DatabaseProvider database={database}>
-        {locked ? <LockScreen onUnlock={() => setUnlocked(true)} /> : <HomeScreen />}
-      </DatabaseProvider>
+      <ToastProvider>
+        <DatabaseProvider database={database}>
+          {locked ? <LockScreen onUnlock={() => setUnlocked(true)} /> : <HomeScreen />}
+        </DatabaseProvider>
+      </ToastProvider>
     </GluestackUIProvider>
   );
 }

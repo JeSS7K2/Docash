@@ -1,7 +1,7 @@
 import React from 'react';
 import * as Feather from 'react-native-feather';
 
-type FeatherName = keyof typeof Feather;
+export type FeatherName = keyof typeof Feather;
 type IconComponent = (props: {
   width?: number | string;
   height?: number | string;
@@ -19,11 +19,36 @@ const CATEGORY_ICONS: Record<string, FeatherName> = {
   cat_clothes: 'ShoppingBag',
   cat_bills: 'Zap',
   cat_edu: 'Book',
-  cat_other_exp: 'MoreHorizontal',
+  cat_other_exp: 'Circle',
   cat_salary: 'Briefcase',
   cat_extra: 'Gift',
-  cat_other_inc: 'MoreHorizontal',
+  cat_other_inc: 'DollarSign',
 };
+
+export const CATEGORY_ICON_OPTIONS: FeatherName[] = [
+  'Coffee',
+  'Truck',
+  'Home',
+  'Film',
+  'Heart',
+  'ShoppingBag',
+  'ShoppingCart',
+  'Zap',
+  'Book',
+  'Briefcase',
+  'Gift',
+  'DollarSign',
+  'Smartphone',
+  'MapPin',
+  'Music',
+  'Sun',
+  'Users',
+  'Calendar',
+  'Star',
+  'Camera',
+  'CreditCard',
+  'Circle',
+];
 
 const ACCOUNT_ICONS: Record<string, FeatherName> = {
   acc_cash: 'CreditCard',
@@ -31,18 +56,22 @@ const ACCOUNT_ICONS: Record<string, FeatherName> = {
 };
 
 function resolve(name: FeatherName): IconComponent {
-  return (Feather as unknown as Record<string, IconComponent>)[name] ?? Feather.MoreHorizontal;
+  return (Feather as unknown as Record<string, IconComponent>)[name] ?? Feather.Circle;
 }
 
 interface IconProps {
   id?: string;
+  icon?: string;
   color: string;
   size?: number;
   strokeWidth?: number;
 }
 
-export function CategoryIcon({ id, color, size = 20, strokeWidth = 2 }: IconProps) {
-  const FeatherIcon = resolve(CATEGORY_ICONS[id ?? ''] ?? 'MoreHorizontal');
+export function CategoryIcon({ id, icon, color, size = 20, strokeWidth = 2 }: IconProps) {
+  // Los tipos del sistema se identifican por id. Esto evita que los emojis
+  // antiguos guardados en SQLite tapen el icono Feather correcto.
+  const iconName = (CATEGORY_ICONS[id ?? ''] ?? icon ?? 'Circle') as FeatherName;
+  const FeatherIcon = resolve(iconName);
   return <FeatherIcon width={size} height={size} color={color} strokeWidth={strokeWidth} />;
 }
 

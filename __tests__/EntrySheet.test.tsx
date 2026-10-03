@@ -18,19 +18,21 @@ jest.mock('../src/db/database', () => ({
 }));
 
 describe('EntrySheet (Fase 2)', () => {
-  it('commits an expense on category tap', async () => {
+  it('commits an expense after category selection and submit', async () => {
     const db = createTestDatabase();
     await seedDatabase(db);
     useEntry.getState().openSheet('expense');
 
     const screen = render(<EntrySheet db={db} />);
-    await waitFor(() => expect(screen.getByTestId('cat-cat_food')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('category-select')).toBeTruthy());
 
     fireEvent.press(screen.getByTestId('num-1'));
     fireEvent.press(screen.getByTestId('num-0'));
     await waitFor(() => expect(screen.getByTestId('entry-amount')).toHaveTextContent('$10.00'));
 
-    fireEvent.press(screen.getByTestId('cat-cat_food'));
+    fireEvent.press(screen.getByTestId('category-select'));
+    fireEvent.press(screen.getByTestId('category-option-cat_food'));
+    fireEvent.press(screen.getByTestId('entry-submit'));
 
     await waitFor(async () => {
       const count = await db.get<Transaction>('transactions').query().fetchCount();

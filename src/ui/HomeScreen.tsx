@@ -41,6 +41,7 @@ import TransactionList from './components/TransactionList';
 import TrendChart from './components/TrendChart';
 import type { TxRowData } from './TxRow';
 import { makeStyles } from './HomeScreen.styles';
+import { useToast } from './Toast';
 import type Account from '../db/models/Account';
 import type Category from '../db/models/Category';
 import type Transaction from '../db/models/Transaction';
@@ -63,6 +64,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t, locale } = useTranslation();
+  const { showError } = useToast();
   const userName = useSettings(s => s.userName);
   const installedAt = useSettings(s => s.installedAt);
   const setInstalledAt = useSettings(s => s.setInstalledAt);
@@ -129,7 +131,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       period === 'all' ? null : rangeForPeriod(period, shiftAnchor(period, anchorMs, -1));
 
     const subscription = observeTransactionsInRange(db, range).subscribe(() => {
-      refresh(range, prevRange).catch(error => console.error('[home] refresh failed', error));
+      refresh(range, prevRange).catch(error => showError(error, 'errors.refresh'));
     });
 
     async function refresh(activeRange: EpochRange | null, previousRange: EpochRange | null) {
@@ -172,6 +174,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
           return {
             id: tx.id,
             categoryId: cat?.id,
+            icon: cat?.icon,
             title,
             note: tx.note,
             occurredOn: tx.occurredOn,
@@ -190,12 +193,8 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         await seedMockData(db);
       }
       await runDueRecurring(db);
-      await syncScheduledNotifications(db).catch(error =>
-        console.error('[home] notifications sync failed', error),
-      );
-      await runNotificationChecks(db).catch(error =>
-        console.error('[home] notification checks failed', error),
-      );
+      await syncScheduledNotifications(db).catch(error => showError(error, 'errors.generic'));
+      await runNotificationChecks(db).catch(error => showError(error, 'errors.generic'));
       if (!cancelled) {
         await refresh(range, prevRange);
       }
@@ -215,7 +214,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         style: 'destructive',
         onPress: () => {
           playSound('delete');
-          deleteTransaction(db, id).catch(error => console.error('[home] delete failed', error));
+          deleteTransaction(db, id).catch(error => showError(error, 'errors.delete'));
         },
       },
     ]);
@@ -256,7 +255,13 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         onSelect={id => {
           const row = rows.find(r => r.id === id);
           if (row && row.kind !== 'transfer') {
-            openEdit({ id: row.id, kind: row.kind, amountCents: row.amountCents, note: row.note });
+            openEdit({
+              id: row.id,
+              kind: row.kind,
+              amountCents: row.amountCents,
+              categoryId: row.categoryId,
+              note: row.note,
+            });
           }
         }}
         onDelete={confirmDelete}
