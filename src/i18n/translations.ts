@@ -83,6 +83,8 @@ export const en = {
   'tx.edit': 'Edit transaction',
   'tx.deleteConfirm': 'Delete this transaction?',
   'common.cancel': 'Cancel',
+  'plan.deleteConfirm': 'Delete this budget? This cannot be undone.',
+  'goals.deleteConfirm': 'Delete this goal? This cannot be undone.',
   'common.back': 'Back',
 
   'category.cat_food': 'Food',
@@ -290,6 +292,8 @@ export const es: Record<TranslationKey, string> = {
   'tx.edit': 'Editar transacción',
   'tx.deleteConfirm': '¿Eliminar esta transacción?',
   'common.cancel': 'Cancelar',
+  'plan.deleteConfirm': '¿Borrar este presupuesto? No se puede deshacer.',
+  'goals.deleteConfirm': '¿Borrar este objetivo? No se puede deshacer.',
   'common.back': 'Volver',
 
   'category.cat_food': 'Comida',

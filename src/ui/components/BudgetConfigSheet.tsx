@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TextInput } from 'react-native';
+import { Alert, TextInput } from 'react-native';
 import { Box, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import type Category from '../../db/models/Category';
@@ -92,13 +92,19 @@ export default function BudgetConfigSheet({ isOpen, onClose, db, category, prese
       showError(error, 'errors.budgetSave');
     }
   };
-  const remove = async () => {
-    try {
-      await removeBudget(db, category.id);
-      onClose();
-    } catch (error) {
-      showError(error, 'errors.budgetDelete');
-    }
+  const remove = () => {
+    Alert.alert(t('entry.delete'), t('plan.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('entry.delete'),
+        style: 'destructive',
+        onPress: () => {
+          removeBudget(db, category.id)
+            .then(onClose)
+            .catch(error => showError(error, 'errors.budgetDelete'));
+        },
+      },
+    ]);
   };
 
   return (

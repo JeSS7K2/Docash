@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Alert, Pressable } from 'react-native';
 import { Box, Text } from '@gluestack-ui/themed';
 import { Trash2 } from 'react-native-feather';
 import type { Database } from '@nozbe/watermelondb';
@@ -201,11 +201,20 @@ export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'shee
                     <Text style={ui.rowTitle}>{goal.name}</Text>
                     <Pressable
                       testID={`goal-delete-${goal.id}`}
-                      onPress={() => {
-                        removeGoal(db, goal.id)
-                          .then(load)
-                          .catch(error => showError(error, 'errors.goalDelete'));
-                      }}>
+                      onPress={() =>
+                        Alert.alert(t('entry.delete'), t('goals.deleteConfirm'), [
+                          { text: t('common.cancel'), style: 'cancel' },
+                          {
+                            text: t('entry.delete'),
+                            style: 'destructive',
+                            onPress: () => {
+                              removeGoal(db, goal.id)
+                                .then(load)
+                                .catch(error => showError(error, 'errors.goalDelete'));
+                            },
+                          },
+                        ])
+                      }>
                       <Trash2 width={18} height={18} color={palette.expense} strokeWidth={2} />
                     </Pressable>
                   </Box>
