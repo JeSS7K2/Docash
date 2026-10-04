@@ -3,7 +3,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // Esquema canónico v1. Montos en céntimos (INTEGER), claves de agregación
 // desnormalizadas (month_key/date_key) para evitar JOINs en el home.
 // Los índices compuestos viven en database.ts (ensurePerformanceSetup).
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export default appSchema({
   version: SCHEMA_VERSION,
@@ -102,13 +102,14 @@ export default appSchema({
         { name: 'updated_at', type: 'number' },
       ],
     }),
-    // Objetivos de ahorro (v6): meta + fecha límite opcional.
+    // Objetivos de ahorro (v6): meta + fecha límite opcional. (v7): contar saldo actual.
     tableSchema({
       name: 'goals',
       columns: [
         { name: 'name', type: 'string' },
         { name: 'target_cents', type: 'number' },
         { name: 'deadline', type: 'number', isOptional: true },
+        { name: 'include_balance', type: 'boolean', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

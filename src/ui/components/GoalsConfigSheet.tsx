@@ -40,6 +40,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db, presentation = '
   const [name, setName] = useState('');
   const [amountText, setAmountText] = useState('');
   const [hasDeadline, setHasDeadline] = useState(false);
+  const [includeBalance, setIncludeBalance] = useState(false);
   const [day, setDay] = useState(pad(now.getDate()));
   const [month, setMonth] = useState(pad(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
@@ -81,11 +82,12 @@ export default function GoalsConfigSheet({ isOpen, onClose, db, presentation = '
       }
     }
     try {
-      await createGoal(db, { name, targetCents, deadline });
+      await createGoal(db, { name, targetCents, deadline, includeBalance });
       playSound('confirm');
       setName('');
       setAmountText('');
       setHasDeadline(false);
+      setIncludeBalance(false);
       setValidationError('');
       onClose();
     } catch (cause) {
@@ -126,6 +128,10 @@ export default function GoalsConfigSheet({ isOpen, onClose, db, presentation = '
         <Box style={ui.toggleRow}>
           <Text style={ui.toggleLabel}>{t('goals.deadline')}</Text>
           <Toggle value={hasDeadline} onValueChange={setHasDeadline} />
+        </Box>
+        <Box style={ui.toggleRow}>
+          <Text style={ui.toggleLabel}>{t('goals.includeBalance')}</Text>
+          <Toggle value={includeBalance} onValueChange={setIncludeBalance} />
         </Box>
         {hasDeadline ? (
           <Box style={styles.periodRow}>

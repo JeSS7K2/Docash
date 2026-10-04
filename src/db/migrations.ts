@@ -96,5 +96,14 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 7,
+      steps: [
+        addColumns({
+          table: 'goals',
+          columns: [{ name: 'include_balance', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
   ],
 });

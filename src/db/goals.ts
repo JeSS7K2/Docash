@@ -9,6 +9,8 @@ export interface GoalInput {
   targetCents: number;
   /** null = indefinido. */
   deadline?: number | null;
+  /** Si true, cuenta el saldo total (no solo lo ahorrado desde su creación). */
+  includeBalance?: boolean;
 }
 
 function cleanName(name: string): string {
@@ -35,6 +37,9 @@ export async function createGoal(db: Database, input: GoalInput): Promise<Goal> 
       if (input.deadline) {
         g.deadline = input.deadline;
       }
+      if (input.includeBalance) {
+        g.includeBalance = true;
+      }
       g.createdAt = now;
       g.updatedAt = now;
     }),
@@ -48,9 +53,9 @@ export async function removeGoal(db: Database, id: string): Promise<void> {
   });
 }
 
-/** Ahorro neto (ingresos − gastos) desde la creación del objetivo hasta su plazo (o ahora). */
+/** Ahorro neto (ingresos − gastos) hasta el plazo. Con `includeBalance`, desde el inicio de los tiempos (= saldo actual). */
 export async function getGoalProgressCents(db: Database, goal: Goal): Promise<number> {
-  const from = goal.createdAt;
+  const from = goal.includeBalance ? 0 : goal.createdAt;
   const to = goal.deadline ?? Date.now();
   const rows = await db
     .get<Transaction>('transactions')
