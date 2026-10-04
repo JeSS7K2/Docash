@@ -22,13 +22,13 @@ export const makeStyles = (c: Palette) =>
     iconButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     body: { paddingHorizontal: spacing.xl },
     callout: {
-      backgroundColor: c.income,
+      backgroundColor: c.primary,
       borderRadius: radius.action,
       padding: spacing.xl,
       marginBottom: spacing.lg,
     },
-    calloutTitle: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
-    calloutBody: { color: c.ink, fontSize: type.metaSize, marginTop: spacing.sm },
+    calloutTitle: { color: '#FFFFFF', fontSize: type.actionSize, fontWeight: '800' },
+    calloutBody: { color: '#FFFFFF', opacity: 0.9, fontSize: type.metaSize, marginTop: spacing.sm },
     linkCard: {
       flexDirection: 'row',
       alignItems: 'center',

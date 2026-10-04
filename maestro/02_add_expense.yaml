@@ -3,14 +3,20 @@ appId: com.docash
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Balance total'
+    visible: 'Current balance'
     timeout: 60000
-- tapOn: 'Add expense'
+- tapOn: 'Expense'
 - assertVisible: 'Note (optional)'
 - tapOn: '1'
 - tapOn: '0'
 - tapOn: '0'
 - assertVisible: '\$100\.00'
+- tapOn:
+    id: 'category-select'
 - tapOn: 'Food'
-- assertVisible: '-\$100\.00'
+- tapOn:
+    id: 'entry-submit'
+- extendedWaitUntil:
+    visible: '-\$100\.00'
+    timeout: 10000
 - assertVisible: 'Food'

@@ -3,12 +3,10 @@ import { Alert, TextInput, Vibration } from 'react-native';
 import { Box, Pressable, Text } from '@gluestack-ui/themed';
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
-import { createTransaction, deleteTransaction, updateTransaction } from '../../db/operations';
+import { createTransaction, deleteTransaction, updateTransaction, type EntryKind } from '../../db/operations';
 import { createCategory } from '../../db/categories';
-import { createRecurringRule } from '../../db/recurring';
-import { recurringReminderAt, scheduleRecurringReminder } from '../../notifications/reminders';
 import { toCents, formatCents } from '../../utils/currency';
-import { intlLocale, translate, useTranslation, type TranslationKey } from '../../i18n';
+import { intlLocale, useTranslation, type TranslationKey } from '../../i18n';
 import { useEntry } from '../../state/useEntry';
 import { useSettings } from '../../state/useSettings';
 import { playSound } from '../../services/sound';
@@ -18,7 +16,6 @@ import { CategoryIcon, type FeatherName } from '../icons';
 import CategoryPickerModal from './CategoryPickerModal';
 import Numpad from './Numpad';
 import SheetScaffold from './SheetScaffold';
-import Toggle from './Toggle';
 import { makeStyles } from './EntrySheet.styles';
 import type Account from '../../db/models/Account';
 import type Category from '../../db/models/Category';
@@ -26,12 +23,13 @@ import type Category from '../../db/models/Category';
 interface EntrySheetProps {
   db: Database;
   presentation?: 'sheet' | 'page';
+  onOpenRecurring?: (payload: { kind: EntryKind; categoryId?: string; amountText?: string }) => void;
 }
 
 /**
  * Flujo en dos pasos: monto + categoría, después confirmación explícita.
  */
-export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetProps) {
+export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring }: EntrySheetProps) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t, locale } = useTranslation();
@@ -50,13 +48,11 @@ export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetPro
   } = useEntry();
   const { showError, showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [repeat, setRepeat] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setRepeat(false);
       setSelectedCategoryId(editingId ? editingCategoryId : null);
     }
   }, [editingCategoryId, editingId, kind, open]);
@@ -93,31 +89,6 @@ export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetPro
           return;
         }
         await createTransaction(db, { accountId: account.id, categoryId, kind, amountCents, note });
-        if (repeat) {
-          const rule = await createRecurringRule(db, {
-            accountId: account.id,
-            categoryId,
-            kind,
-            amountCents,
-            frequency: 'monthly',
-          });
-          const { reminderHour, locale: loc } = useSettings.getState();
-          const at = recurringReminderAt(rule.nextRun, reminderHour);
-          if (at > Date.now()) {
-            const key = `category.${categoryId}` as TranslationKey;
-            const translated = translate(loc, key);
-            const name =
-              translated === key
-                ? categories.find(c => c.id === categoryId)?.name ?? categoryId
-                : translated;
-            await scheduleRecurringReminder(
-              rule.id,
-              at,
-              'Docash',
-              translate(loc, 'reminders.recurringBody', { name }),
-            );
-          }
-        }
       }
       playSound(editingId ? 'confirm' : kind);
       Vibration.vibrate([0, 25, 50, 25]);
@@ -192,8 +163,8 @@ export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetPro
           <Box style={styles.kindSegment}>
             {(['expense', 'income'] as const).map(option => {
               const selected = kind === option;
-              const buttonColor = selected ? (option === 'expense' ? palette.primary : palette.income) : 'transparent';
-              const textColor = selected && option === 'expense' ? '#FFFFFF' : palette.ink;
+              const buttonColor = selected ? palette.primary : 'transparent';
+              const textColor = selected ? '#FFFFFF' : palette.ink;
               return (
                 <Pressable
                   key={option}
@@ -239,10 +210,19 @@ export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetPro
             <Text style={styles.fieldLabel}>{t('entry.date')}</Text>
             <Text style={styles.dateValue}>{t('entry.today')}</Text>
           </Box>
-          <Box style={styles.repeatControl}>
+          <Pressable
+            testID="entry-repeat"
+            style={styles.repeatControl}
+            onPress={() =>
+              onOpenRecurring?.({
+                kind,
+                categoryId: selectedCategoryId ?? undefined,
+                amountText: buffer,
+              })
+            }>
             <Text style={styles.repeatLabel}>{t('entry.repeat')}</Text>
-            <Toggle value={repeat} onValueChange={setRepeat} />
-          </Box>
+            <Text style={[styles.chevron, { color: palette.muted }]}>›</Text>
+          </Pressable>
         </Box>
         <TextInput
           testID="entry-note"
@@ -262,11 +242,10 @@ export default function EntrySheet({ db, presentation = 'sheet' }: EntrySheetPro
           disabled={!selectedCategoryId}
           style={[
             styles.submitButton,
-            { backgroundColor: kind === 'income' ? palette.income : palette.primary },
             !selectedCategoryId && styles.submitButtonDisabled,
           ]}
           onPress={() => selectedCategoryId && commit(selectedCategoryId)}>
-          <Text style={[styles.submitText, kind === 'income' && styles.incomeSubmitText]}>{t('entry.submit')}</Text>
+          <Text style={styles.submitText}>{t('entry.submit')}</Text>
         </Pressable>
         {editingId ? (
           <Pressable

@@ -104,21 +104,21 @@ export const makeStyles = (c: Palette) =>
       backgroundColor: c.faint,
     },
     editText: { color: c.ink, fontSize: type.metaSize, fontWeight: '600' },
-    goalsIntro: {
-      backgroundColor: c.income,
-      padding: spacing.xl,
+    emptyCard: {
+      backgroundColor: c.primarySoft,
       borderRadius: radius.action,
+      padding: spacing.xl,
       marginBottom: spacing.lg,
     },
-    goalsIntroTitle: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
-    goalsIntroBody: { color: c.ink, fontSize: type.metaSize, marginTop: spacing.sm },
+    emptyTitle: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
+    emptyBody: { color: c.muted, fontSize: type.metaSize, marginTop: spacing.sm },
     goalAddButton: {
       backgroundColor: c.primary,
-      minHeight: 42,
+      minHeight: 48,
       borderRadius: radius.action,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: spacing.lg,
+      marginTop: spacing.md,
     },
     goalAddText: { color: c.onAction, fontSize: type.metaSize, fontWeight: '700' },
     goalCard: {

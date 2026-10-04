@@ -15,9 +15,9 @@ export const makeStyles = (c: Palette) =>
       minHeight: 46,
     },
     expense: { backgroundColor: c.primary },
-    income: { backgroundColor: c.income },
+    income: { backgroundColor: c.primary },
     label: { fontSize: type.bodySize, fontWeight: type.actionWeight },
     symbol: { fontSize: 18, fontWeight: '700' },
     expenseText: { color: '#FFFFFF' },
-    incomeText: { color: c.ink },
+    incomeText: { color: '#FFFFFF' },
   });

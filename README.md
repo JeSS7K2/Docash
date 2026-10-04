@@ -1,79 +1,58 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Docash
 
-# Getting Started
+**English** · [Español](README.es.md)
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+Personal finance app for Android. Everything stays on the phone: no account, no login, no server. Open it, log your stuff, close it.
 
-## Step 1: Start the Metro Server
+## What it does
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+- Log expenses and income with its own number pad, category, note and date.
+- Total balance plus this month's income and expenses on the home screen.
+- Transaction list with day/week/month/year/all filters and a search box.
+- Categories with icons; add your own when something's missing.
+- Per-category budgets (daily, weekly or monthly) with a progress bar and an alert when you go over.
+- Savings goals with progress. The deadline is optional; skip it and it's open-ended.
+- Recurring entries: daily, weekly, monthly, or every N days/weeks/months. They get applied on their own when you open the app.
+- USD or EUR. It only changes the symbol, it won't convert amounts you already saved (on purpose).
+- Light, dark or system theme, and the whole app in English and Spanish.
+- PIN and fingerprint lock.
+- Reminders for budgets, goals and inactivity, each with a switch to turn it off.
+- Export and import your data as text, to back it up or move it to another phone.
+- Home-screen widget with the balance.
 
-To start Metro, run the following command from the _root_ of your React Native project:
+## Stack
 
-```bash
-# using npm
-npm start
+React Native 0.76 on the new architecture, WatermelonDB (on-device SQLite, via JSI), Skia for charts, Reanimated + Gesture Handler for transitions, Gluestack for components and Zustand for state. Nothing leaves the device.
 
-# OR using Yarn
-yarn start
-```
+## Running it
 
-## Step 2: Start your Application
-
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
-
-### For Android
-
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### For iOS
+You'll need Node, JDK 17 and the Android SDK with `ANDROID_HOME` and `JAVA_HOME` set.
 
 ```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+npm install
+npm start          # start Metro
+npm run android    # build and install on an emulator or device
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+For a release APK (arm64-v8a only by default):
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+```bash
+cd android
+./gradlew assembleRelease
+```
 
-## Step 3: Modifying your App
+The APK ends up in `android/app/build/outputs/apk/release/`.
 
-Now that you have successfully run the app, let's modify it.
+## Tests
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+Logic runs on Jest:
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+```bash
+npm test
+```
 
-## Congratulations! :tada:
+UI flows run on [Maestro](https://maestro.mobile.dev/), in `maestro/`:
 
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+```bash
+maestro test maestro
+```

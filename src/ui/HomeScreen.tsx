@@ -21,7 +21,7 @@ import {
 import { seedDatabase } from '../db/seed';
 import { seedMockData } from '../db/mock';
 import { MOCK_DATA } from '../config/flags';
-import { deleteTransaction } from '../db/operations';
+import { deleteTransaction, type EntryKind } from '../db/operations';
 import { runDueRecurring } from '../db/recurring';
 import { runNotificationChecks, syncScheduledNotifications } from '../notifications/engine';
 import { playSound } from '../services/sound';
@@ -74,6 +74,11 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const [activeTab, setActiveTab] = useState<MainTab>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [recurringFromEntry, setRecurringFromEntry] = useState<{
+    kind: EntryKind;
+    categoryId?: string;
+    amountText?: string;
+  } | null>(null);
   const [accountName, setAccountName] = useState('');
   const [accountId, setAccountId] = useState<string | undefined>();
   const [balance, setBalance] = useState(0);
@@ -281,7 +286,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         </>
       ) : null}
 
-      <EntrySheet db={db} presentation="page" />
+      <EntrySheet db={db} presentation="page" onOpenRecurring={setRecurringFromEntry} />
       <SettingsSheet
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -293,6 +298,13 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         isOpen={notificationsOpen}
         onClose={() => { setNotificationsOpen(false); setSettingsOpen(true); }}
         presentation="page"
+      />
+      <RecurringSheet
+        isOpen={recurringFromEntry !== null}
+        onClose={() => setRecurringFromEntry(null)}
+        db={db}
+        presentation="page"
+        initial={recurringFromEntry ?? undefined}
       />
     </SafeAreaView>
   );

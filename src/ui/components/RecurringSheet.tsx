@@ -8,7 +8,7 @@ import type Category from '../../db/models/Category';
 import type Account from '../../db/models/Account';
 import type RecurringRule from '../../db/models/RecurringRule';
 import { createRecurringRule, deleteRecurringRule, defaultScheduleDay } from '../../db/recurring';
-import type { Frequency } from '../../db/models/RecurringRule';
+import type { Frequency, IntervalUnit } from '../../db/models/RecurringRule';
 import type { EntryKind } from '../../db/operations';
 import { toCents } from '../../utils/currency';
 import { displayToBaseCents } from '../../utils/fx';
@@ -32,13 +32,16 @@ interface RecurringSheetProps {
   onClose: () => void;
   db: Database;
   presentation?: 'sheet' | 'page';
+  /** Abre directo el formulario, prellenado (p. ej. desde el registro de un movimiento). */
+  initial?: { kind: EntryKind; categoryId?: string; amountText?: string };
 }
 
 type Phase = 'list' | 'kind' | 'form';
 
-const FREQUENCIES: Frequency[] = ['daily', 'weekly', 'monthly'];
+const FREQUENCIES: Frequency[] = ['daily', 'weekly', 'monthly', 'custom'];
+const UNITS: IntervalUnit[] = ['day', 'week', 'month'];
 
-export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sheet' }: RecurringSheetProps) {
+export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sheet', initial }: RecurringSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -58,6 +61,8 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
   const [frequency, setFrequency] = useState<Frequency>('monthly');
   const [scheduleDay, setScheduleDay] = useState<number>(() => defaultScheduleDay('monthly'));
   const [dayText, setDayText] = useState(String(defaultScheduleDay('monthly')));
+  const [intervalCount, setIntervalCount] = useState(1);
+  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>('day');
 
   const localeTag = locale === 'es' ? 'es-ES' : 'en-US';
   const weekdayOptions = Array.from({ length: 7 }, (_, i) => ({
@@ -80,10 +85,18 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
     if (!isOpen) {
       return;
     }
-    setPhase('list');
+    if (initial) {
+      setKind(initial.kind);
+      setCategoryId(initial.categoryId ?? '');
+      setAmountText(initial.amountText ?? '');
+      setFrequency('monthly');
+      setPhase('form');
+    } else {
+      setPhase('list');
+    }
     reload().catch(error => showError(error, 'errors.recurringLoad'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, db]);
+  }, [isOpen, db, initial]);
 
   const kindCats = cats.filter(c => c.kind === kind && c.id !== 'cat_other_inc');
 
@@ -101,6 +114,8 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
     setCategoryId('');
     setAmountText('');
     setFrequency('monthly');
+    setIntervalCount(1);
+    setIntervalUnit('day');
   };
 
   const pickKind = (k: EntryKind) => {
@@ -136,6 +151,8 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
         amountCents,
         frequency,
         scheduleDay: frequency === 'weekly' || frequency === 'monthly' ? scheduleDay : undefined,
+        intervalCount: frequency === 'custom' ? intervalCount : undefined,
+        intervalUnit: frequency === 'custom' ? intervalUnit : undefined,
       });
       const { reminderHour, locale: loc } = useSettings.getState();
       const notifyAt = recurringReminderAt(created.nextRun, reminderHour);
@@ -151,8 +168,12 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
         );
       }
       resetForm();
-      setPhase('list');
-      await reload();
+      if (initial) {
+        onClose();
+      } else {
+        setPhase('list');
+        await reload();
+      }
     } catch (error) {
       showError(error, 'errors.recurringSave');
     }
@@ -245,7 +266,7 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
             <Pressable
               testID="recurring-back"
               style={styles.backButton}
-              onPress={() => setPhase('kind')}>
+              onPress={() => (initial ? onClose() : setPhase('kind'))}>
               <Text style={styles.backText}>{`‹ ${t('common.back')}`}</Text>
             </Pressable>
             <Text style={ui.section}>{t('recurring.category')}</Text>
@@ -332,6 +353,42 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
                   placeholder="1"
                   placeholderTextColor={palette.muted}
                 />
+              </>
+            ) : null}
+
+            {frequency === 'custom' ? (
+              <>
+                <Text style={ui.section}>{t('recurring.custom')}</Text>
+                <Box style={ui.chips}>
+                  <TextInput
+                    testID="recurring-count"
+                    style={styles.daysInput}
+                    keyboardType="number-pad"
+                    value={String(intervalCount)}
+                    onChangeText={value => {
+                      const parsed = parseInt(value, 10);
+                      if (Number.isFinite(parsed) && parsed > 0) {
+                        setIntervalCount(Math.min(parsed, 365));
+                      }
+                    }}
+                    placeholder="1"
+                    placeholderTextColor={palette.muted}
+                  />
+                  {UNITS.map(u => {
+                    const active = intervalUnit === u;
+                    return (
+                      <Pressable
+                        key={u}
+                        testID={`recurring-unit-${u}`}
+                        style={[ui.chip, active && ui.chipActive]}
+                        onPress={() => setIntervalUnit(u)}>
+                        <Text style={[ui.chipText, active && ui.chipTextActive]}>
+                          {t(`period.${u}` as 'period.day')}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </Box>
               </>
             ) : null}
 

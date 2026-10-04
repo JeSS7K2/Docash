@@ -157,9 +157,7 @@ export default function GoalsConfigSheet({ isOpen, onClose, db, presentation = '
               placeholderTextColor={palette.muted}
             />
           </Box>
-        ) : (
-          <Text style={ui.rowMeta}>{t('goals.indefinite')}</Text>
-        )}
+        ) : null}
         {validationError ? <Text style={[ui.section, { color: palette.expense }]}>{validationError}</Text> : null}
         <Box style={ui.chips}>
           <Pressable testID="goal-save" style={ui.actionButton} onPress={save}>

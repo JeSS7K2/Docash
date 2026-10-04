@@ -5,7 +5,7 @@ export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     amount: {
       textAlign: 'left',
-      color: '#2A223B',
+      color: '#FFFFFF',
       fontSize: 34,
       fontWeight: '800',
       marginTop: spacing.sm,
@@ -14,7 +14,7 @@ export const makeStyles = (c: Palette) =>
     kindOption: { flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radius.action },
     kindOptionText: { fontSize: type.metaSize, fontWeight: '700' },
     amountPanel: { marginHorizontal: spacing.xl, marginTop: spacing.md, padding: spacing.lg, borderRadius: 20, minHeight: 88, justifyContent: 'center' },
-    amountLabel: { color: c.ink, fontSize: 10, fontWeight: '700' },
+    amountLabel: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
     stepHint: {
       textAlign: 'center',
       color: c.muted,
@@ -79,7 +79,6 @@ export const makeStyles = (c: Palette) =>
     },
     submitButtonDisabled: { opacity: 0.45 },
     submitText: { color: '#FFFFFF', fontSize: type.actionSize, fontWeight: type.actionWeight },
-    incomeSubmitText: { color: c.ink },
     deleteButton: {
       flexDirection: 'row',
       alignItems: 'center',

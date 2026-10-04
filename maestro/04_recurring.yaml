@@ -3,15 +3,10 @@ appId: com.docash
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Balance total'
+    visible: 'Current balance'
     timeout: 60000
-- tapOn: 'Open options'
-- waitForAnimationToEnd
-- swipe:
-    start: 50%, 82%
-    end: 50%, 50%
 - tapOn:
-    id: 'open-recurring'
+    id: 'tab-recurring'
 - extendedWaitUntil:
     visible: 'Add recurring'
     timeout: 15000

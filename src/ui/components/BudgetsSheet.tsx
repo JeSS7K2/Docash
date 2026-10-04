@@ -179,17 +179,12 @@ export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'shee
             </>
           ) : (
             <>
-              <Box style={styles.goalsIntro}>
-                <Text style={styles.goalsIntroTitle}>{t('plan.goalsIntro')}</Text>
-                <Text style={styles.goalsIntroBody}>{t('plan.goalsBody')}</Text>
-                <Pressable
-                  testID="goal-add"
-                  style={styles.goalAddButton}
-                  onPress={() => setGoalConfigOpen(true)}>
-                  <Text style={styles.goalAddText}>{t('goals.add')}</Text>
-                </Pressable>
-              </Box>
-              {goals.length === 0 ? <Text style={ui.rowMeta}>{t('goals.empty')}</Text> : null}
+              {goals.length === 0 ? (
+                <Box style={styles.emptyCard}>
+                  <Text style={styles.emptyTitle}>{t('plan.goalsIntro')}</Text>
+                  <Text style={styles.emptyBody}>{t('plan.goalsBody')}</Text>
+                </Box>
+              ) : null}
           {goals.map(({ goal, progress }) => {
             const pct = goal.targetCents > 0 ? Math.min(progress / goal.targetCents, 1) : 0;
             const reached = progress >= goal.targetCents;
@@ -198,7 +193,7 @@ export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'shee
                   locale === 'es' ? 'es-ES' : 'en-US',
                   { day: '2-digit', month: 'short', year: 'numeric' },
                 )
-              : t('goals.indefinite');
+              : '';
             return (
               <Box key={goal.id} style={[ui.row, styles.goalCard]}>
                 <Box style={ui.spacer}>
@@ -225,12 +220,18 @@ export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'shee
                   </Box>
                   <Box style={styles.metaRow}>
                     <Text style={ui.rowMeta}>{`${money(progress)} / ${money(goal.targetCents)}`}</Text>
-                    <Text style={ui.rowMeta}>{deadlineLabel}</Text>
+                    {deadlineLabel ? <Text style={ui.rowMeta}>{deadlineLabel}</Text> : null}
                   </Box>
                 </Box>
               </Box>
             );
           })}
+              <Pressable
+                testID="goal-add"
+                style={styles.goalAddButton}
+                onPress={() => setGoalConfigOpen(true)}>
+                <Text style={styles.goalAddText}>{t('goals.add')}</Text>
+              </Pressable>
             </>
           )}
         </Box>

@@ -20,5 +20,5 @@ export const makeStyles = (c: Palette) =>
     },
     accountName: { fontSize: 14, color: c.muted },
     heroText: { color: '#FFFFFF' },
-    heroMuted: { color: '#EFEAFF' },
+    heroMuted: { color: '#E1E7FF' },
   });

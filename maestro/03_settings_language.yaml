@@ -3,10 +3,12 @@ appId: com.docash
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Balance total'
+    visible: 'Current balance'
     timeout: 60000
-- tapOn: 'Open options'
-- assertVisible: 'Options'
+- tapOn:
+    id: 'open-settings'
+- assertVisible: 'Settings'
+- tapOn: 'Appearance'
+- assertVisible: 'Language'
 - tapOn: 'Español'
-- assertVisible: 'Opciones'
 - assertVisible: 'Apariencia'

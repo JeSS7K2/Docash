@@ -98,7 +98,7 @@ export const en = {
   'category.cat_extra': 'Extra',
 
   'entry.note': 'Note (optional)',
-  'entry.repeat': 'Repeat monthly',
+  'entry.repeat': 'Repeat',
   'trend.title': 'Trend',
   'compare.vsPrevious': 'vs previous period',
   'settings.exchangeRate': 'Exchange rate (1 USD =)',
@@ -304,7 +304,7 @@ export const es: Record<TranslationKey, string> = {
   'category.cat_extra': 'Extra',
 
   'entry.note': 'Nota (opcional)',
-  'entry.repeat': 'Repetir mensualmente',
+  'entry.repeat': 'Recurrente',
   'trend.title': 'Tendencia',
   'compare.vsPrevious': 'vs periodo anterior',
   'settings.exchangeRate': 'Tipo de cambio (1 USD =)',
