@@ -6,10 +6,11 @@
 
 import React from 'react';
 import { FlatList } from 'react-native';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { it, expect, jest, describe } from '@jest/globals';
 import HomeScreen from '../src/ui/HomeScreen';
 import { createTransaction } from '../src/db/operations';
+import { setBudget } from '../src/db/budgets';
 import { seedDatabase } from '../src/db/seed';
 import { createTestDatabase } from '../src/db/testDb';
 
@@ -53,5 +54,11 @@ describe('HomeScreen (Fase 1)', () => {
     expect(screen.getByTestId('balance-total')).toHaveTextContent('-$10.00');
     expect(screen.getByTestId('account-name')).toHaveTextContent(/Cash/);
     expect(screen.getByText('Current balance')).toBeTruthy();
+    expect(screen.getByText('Create a budget')).toBeTruthy();
+
+    await act(async () => {
+      await setBudget(db, 'cat_food', 5000);
+    });
+    await waitFor(() => expect(screen.queryByText('Create a budget')).toBeNull());
   });
 });

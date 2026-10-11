@@ -4,24 +4,22 @@ import {
   Actionsheet,
   ActionsheetBackdrop,
   ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
   ActionsheetScrollView,
   Box,
   Text,
 } from '@gluestack-ui/themed';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { X } from 'react-native-feather';
 import { usePalette, useThemedStyles } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { Icon } from '../icons';
 import { makeStyles } from './SheetScaffold.styles';
-
-const CLOSE_THRESHOLD = 140;
-const CLOSE_VELOCITY = 900;
 
 interface SheetScaffoldProps {
   isOpen: boolean;
@@ -36,11 +34,14 @@ interface SheetScaffoldProps {
   closeTestID?: string;
   scrollTestID?: string;
   presentation?: 'sheet' | 'page';
+  pageHeaderMode?: 'back' | 'close' | 'settings';
+  onOpenSettings?: () => void;
+  showSheetTitle?: boolean;
 }
 
 /**
  * Cascarón común de modales: backdrop gestionado por Gluestack, cabecera con acento propio,
- * cierre por X / backdrop / botón atrás / deslizar hacia abajo.
+ * cierre por backdrop / botón atrás / deslizar hacia abajo.
  */
 export default function SheetScaffold({
   isOpen,
@@ -53,17 +54,22 @@ export default function SheetScaffold({
   scrollTestID,
   closeTestID,
   presentation = 'sheet',
+  pageHeaderMode = 'back',
+  onOpenSettings,
+  showSheetTitle = true,
 }: SheetScaffoldProps) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const { t } = useTranslation();
 
-  const translateY = useSharedValue(0);
+  const pageProgress = useSharedValue(0);
+
   useEffect(() => {
-    if (isOpen) {
-      translateY.value = 0;
+    if (presentation === 'page' && isOpen) {
+      pageProgress.value = 0;
+      pageProgress.value = withTiming(1, { duration: 260 });
     }
-  }, [isOpen, translateY]);
+  }, [isOpen, pageProgress, presentation]);
 
   useEffect(() => {
     if (presentation !== 'page' || !isOpen) {
@@ -76,24 +82,10 @@ export default function SheetScaffold({
     return () => subscription.remove();
   }, [isOpen, onClose, presentation]);
 
-  const pan = Gesture.Pan()
-    .onUpdate(event => {
-      if (event.translationY > 0) {
-        translateY.value = event.translationY;
-      }
-    })
-    .onEnd(event => {
-      if (event.translationY > CLOSE_THRESHOLD || event.velocityY > CLOSE_VELOCITY) {
-        translateY.value = withTiming(500, { duration: 160 }, finished => {
-          if (finished) {
-            runOnJS(onClose)();
-          }
-        });
-      } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
-      }
-    });
-  const sheetAnim = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
+  const pageAnim = useAnimatedStyle(() => ({
+    opacity: pageProgress.value,
+    transform: [{ translateY: (1 - pageProgress.value) * 16 }],
+  }));
 
   if (presentation === 'page' && !isOpen) {
     return null;
@@ -101,16 +93,39 @@ export default function SheetScaffold({
 
   if (presentation === 'page') {
     return (
-      <View style={[styles.page, { backgroundColor: palette.paper }]}>
+      <Animated.View
+        style={[styles.page, pageAnim, { backgroundColor: palette.paper }]}
+      >
         <View style={styles.pageHeader}>
+          {pageHeaderMode === 'settings' ? <View style={styles.pageHeaderSlot} /> : pageHeaderMode === 'close' ? (
+            <Pressable
+              testID={closeTestID}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+              style={styles.pageHeaderSlot}
+              onPress={onClose}>
+              <X width={24} height={24} color={palette.ink} strokeWidth={2.2} />
+            </Pressable>
+          ) : null}
           <NativeText style={[styles.pageTitle, { color: palette.ink }]}>{title}</NativeText>
-          <Pressable
-            testID={closeTestID}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            onPress={onClose}>
-            <NativeText style={[styles.pageBack, { color: palette.muted }]}>{`‹ ${t('common.back')}`}</NativeText>
-          </Pressable>
+          {pageHeaderMode === 'settings' ? (
+            <Pressable
+              testID="open-settings"
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.open')}
+              style={styles.pageHeaderSlot}
+              onPress={onOpenSettings}>
+              <Icon name="Settings" color={palette.ink} size={28} strokeWidth={2.2} />
+            </Pressable>
+          ) : pageHeaderMode === 'close' ? <View style={styles.pageHeaderSlot} /> : (
+            <Pressable
+              testID={closeTestID}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              onPress={onClose}>
+              <NativeText style={[styles.pageBack, { color: palette.muted }]}>{`‹ ${t('common.back')}`}</NativeText>
+            </Pressable>
+          )}
         </View>
         {fixedContent}
         <ScrollView
@@ -119,7 +134,7 @@ export default function SheetScaffold({
           keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
-      </View>
+      </Animated.View>
     );
   }
 
@@ -130,15 +145,16 @@ export default function SheetScaffold({
         style={styles.backdrop}
       />
       <ActionsheetContent style={styles.content}>
-        <Animated.View style={[styles.sheetInner, sheetAnim]}>
-          <GestureDetector gesture={pan}>
-            <View>
-              <Box style={[styles.accentBar, { backgroundColor: accent }]} />
-              <Box style={[styles.header, { backgroundColor: accentSoft }]}>
-                <Text style={[styles.title, { color: accent }]}>{title}</Text>
-              </Box>
-            </View>
-          </GestureDetector>
+        <ActionsheetDragIndicatorWrapper style={styles.dragHandle}>
+          <ActionsheetDragIndicator style={[styles.accentBar, { backgroundColor: accent }]} />
+        </ActionsheetDragIndicatorWrapper>
+        {showSheetTitle ? (
+          <View>
+            <Box style={styles.header} backgroundColor={accentSoft}>
+              <Text style={[styles.title, { color: accent }]}>{title}</Text>
+            </Box>
+          </View>
+        ) : null}
           {fixedContent}
           <ActionsheetScrollView
             testID={scrollTestID}
@@ -146,7 +162,6 @@ export default function SheetScaffold({
             keyboardShouldPersistTaps="handled">
             {children}
           </ActionsheetScrollView>
-        </Animated.View>
       </ActionsheetContent>
     </Actionsheet>
   );

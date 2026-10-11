@@ -43,8 +43,8 @@ function TxRow({ row, onPress, onDelete }: TxRowProps) {
       testID={`tx-row-${row.id}`}
       accessibilityRole="button"
       onPress={onPress ? () => onPress(row.id) : undefined}>
-      <View style={styles.iconWrap}>
-        <CategoryIcon id={row.categoryId} icon={row.icon} color={palette.ink} size={20} />
+      <View style={[styles.iconWrap, row.kind === 'income' ? styles.iconIncome : styles.iconExpense]}>
+        <CategoryIcon id={row.categoryId} icon={row.icon} color={amountColor} size={22} />
       </View>
       <View style={styles.meta}>
         <Text style={styles.title} numberOfLines={1}>

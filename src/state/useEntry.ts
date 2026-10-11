@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { applyKey, centsToBuffer, INITIAL_BUFFER, type NumpadKey } from '../utils/amountBuffer';
+import { applyKey, centsToBuffer, INITIAL_BUFFER, normalizeBuffer, type NumpadKey } from '../utils/amountBuffer';
 import type { EntryKind } from '../db/operations';
 
 interface EntryState {
@@ -11,6 +11,7 @@ interface EntryState {
   /** id de la transacción en edición, null = alta nueva. */
   editingId: string | null;
   editingCategoryId: string | null;
+  editingOccurredOn: number | null;
   openSheet: (kind: EntryKind) => void;
   switchKind: (kind: EntryKind) => void;
   openEdit: (input: {
@@ -19,9 +20,11 @@ interface EntryState {
     amountCents: number;
     categoryId?: string;
     note?: string;
+    occurredOn?: number;
   }) => void;
   closeSheet: (options?: { preserveDraft?: boolean }) => void;
   pressKey: (key: NumpadKey) => void;
+  setBuffer: (value: string) => void;
   setNote: (note: string) => void;
 }
 
@@ -34,6 +37,7 @@ export const useEntry = create<EntryState>()(set => ({
   drafts: { expense: INITIAL_BUFFER, income: INITIAL_BUFFER },
   editingId: null,
   editingCategoryId: null,
+  editingOccurredOn: null,
   openSheet: kind =>
     set(state => ({
       open: true,
@@ -42,6 +46,7 @@ export const useEntry = create<EntryState>()(set => ({
       note: '',
       editingId: null,
       editingCategoryId: null,
+      editingOccurredOn: null,
     })),
   switchKind: kind =>
     set(state => state.editingId || state.kind === kind
@@ -51,7 +56,7 @@ export const useEntry = create<EntryState>()(set => ({
           drafts: { ...state.drafts, [state.kind]: state.buffer },
           buffer: state.drafts[kind],
         }),
-  openEdit: ({ id, kind, amountCents, categoryId, note }) =>
+  openEdit: ({ id, kind, amountCents, categoryId, note, occurredOn }) =>
     set({
       open: true,
       kind,
@@ -59,6 +64,7 @@ export const useEntry = create<EntryState>()(set => ({
       note: note ?? '',
       editingId: id,
       editingCategoryId: categoryId ?? null,
+      editingOccurredOn: occurredOn ?? null,
     }),
   closeSheet: ({ preserveDraft = true } = {}) =>
     set(state => ({
@@ -73,7 +79,9 @@ export const useEntry = create<EntryState>()(set => ({
       note: '',
       editingId: null,
       editingCategoryId: null,
+      editingOccurredOn: null,
     })),
   pressKey: key => set(state => ({ buffer: applyKey(state.buffer, key) })),
+  setBuffer: value => set({ buffer: normalizeBuffer(value) }),
   setNote: note => set({ note: note.slice(0, 280) }),
 }));

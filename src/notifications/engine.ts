@@ -22,6 +22,7 @@ import {
   scheduleRecurringReminder,
   scheduleWeeklySummary,
 } from './reminders';
+import { reconcileStreakReminder } from './streakReminders';
 
 const store = new MMKV({ id: 'docash-notif' });
 const dayKey = () => new Date().toISOString().slice(0, 10);
@@ -46,6 +47,8 @@ export async function syncScheduledNotifications(db: Database): Promise<void> {
   const s = useSettings.getState();
   const byId = await categoriesById(db);
   const locale = s.locale;
+
+  await reconcileStreakReminder(db, locale);
 
   // Diaria inteligente.
   if (s.reminderEnabled) {

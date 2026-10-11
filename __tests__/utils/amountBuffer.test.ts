@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { applyKey, INITIAL_BUFFER, type NumpadKey } from '../../src/utils/amountBuffer';
+import { applyKey, INITIAL_BUFFER, normalizeBuffer, type NumpadKey } from '../../src/utils/amountBuffer';
 
 function typeAll(keys: NumpadKey[]): string {
   return keys.reduce(applyKey, INITIAL_BUFFER);
@@ -26,5 +26,12 @@ describe('applyKey', () => {
     expect(applyKey('10.5', 'back')).toBe('10.');
     expect(applyKey('5', 'back')).toBe('0');
     expect(applyKey('0', 'back')).toBe('0');
+  });
+});
+
+describe('normalizeBuffer', () => {
+  it('normalizes native keyboard input to the supported amount format', () => {
+    expect(normalizeBuffer('0012,345')).toBe('12.34');
+    expect(normalizeBuffer('')).toBe('0');
   });
 });

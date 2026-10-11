@@ -29,6 +29,7 @@ interface SettingsSheetProps {
   onClose: () => void;
   db: Database;
   onOpenNotifications: () => void;
+  onOpenStreakSettings?: () => void;
   presentation?: 'sheet' | 'page';
 }
 
@@ -39,6 +40,7 @@ export default function SettingsSheet({
   onClose,
   db,
   onOpenNotifications,
+  onOpenStreakSettings,
   presentation = 'sheet',
 }: SettingsSheetProps) {
   const styles = useThemedStyles(makeStyles);
@@ -185,6 +187,15 @@ export default function SettingsSheet({
             </Box>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+          {onOpenStreakSettings ? (
+            <Pressable style={styles.linkCard} onPress={onOpenStreakSettings}>
+              <Box style={styles.linkCopy}>
+                <Text style={styles.linkTitle}>{t('streak.settings')}</Text>
+                <Text style={styles.linkBody}>{t('settings.streakSummary')}</Text>
+              </Box>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={styles.linkCard} onPress={() => setPage('backup')}>
             <Box style={styles.linkCopy}>
               <Text style={styles.linkTitle}>{t('settings.backup')}</Text>

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { TextInput } from 'react-native';
+import { Keyboard, LayoutAnimation, Platform, TextInput, UIManager } from 'react-native';
 import { Box, Pressable, Text } from '@gluestack-ui/themed';
-import { Trash2 } from 'react-native-feather';
+import { ChevronDown, CreditCard, Repeat, Trash2 } from 'react-native-feather';
 import type { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import type Category from '../../db/models/Category';
 import type Account from '../../db/models/Account';
 import type RecurringRule from '../../db/models/RecurringRule';
+import { createCategory } from '../../db/categories';
 import { createRecurringRule, deleteRecurringRule, defaultScheduleDay } from '../../db/recurring';
 import type { Frequency, IntervalUnit } from '../../db/models/RecurringRule';
 import type { EntryKind } from '../../db/operations';
@@ -21,29 +22,41 @@ import { useMoney } from '../../state/useMoney';
 import { useSettings } from '../../state/useSettings';
 import { translate, useTranslation, type TranslationKey } from '../../i18n';
 import { usePalette, useThemedStyles } from '../../theme';
-import { CategoryIcon } from '../icons';
+import { CategoryIcon, type FeatherName } from '../icons';
+import CategoryPickerModal from './CategoryPickerModal';
+import { makeStyles as makeEntryStyles } from './EntrySheet.styles';
 import SheetScaffold from './SheetScaffold';
 import { makeSheetUi } from './sheetUi.styles';
 import { makeStyles } from './RecurringSheet.styles';
 import { useToast } from '../Toast';
+import { normalizeBuffer } from '../../utils/amountBuffer';
 
 interface RecurringSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSettings?: () => void;
   db: Database;
   presentation?: 'sheet' | 'page';
   /** Abre directo el formulario, prellenado (p. ej. desde el registro de un movimiento). */
   initial?: { kind: EntryKind; categoryId?: string; amountText?: string };
 }
 
-type Phase = 'list' | 'kind' | 'form';
+type Phase = 'list' | 'form';
 
 const FREQUENCIES: Frequency[] = ['daily', 'weekly', 'monthly', 'custom'];
 const UNITS: IntervalUnit[] = ['day', 'week', 'month'];
 
-export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sheet', initial }: RecurringSheetProps) {
+function animateLayout() {
+  if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+}
+
+export default function RecurringSheet({ isOpen, onClose, onOpenSettings, db, presentation = 'sheet', initial }: RecurringSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
+  const entryStyles = useThemedStyles(makeEntryStyles);
   const palette = usePalette();
   const money = useMoney();
   const { t, locale } = useTranslation();
@@ -63,6 +76,7 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
   const [dayText, setDayText] = useState(String(defaultScheduleDay('monthly')));
   const [intervalCount, setIntervalCount] = useState(1);
   const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>('day');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const localeTag = locale === 'es' ? 'es-ES' : 'en-US';
   const weekdayOptions = Array.from({ length: 7 }, (_, i) => ({
@@ -111,24 +125,53 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
   };
 
   const resetForm = () => {
+    setKind('expense');
     setCategoryId('');
     setAmountText('');
     setFrequency('monthly');
+    const day = defaultScheduleDay('monthly');
+    setScheduleDay(day);
+    setDayText(String(day));
     setIntervalCount(1);
     setIntervalUnit('day');
   };
 
-  const pickKind = (k: EntryKind) => {
-    setKind(k);
+  const startForm = () => {
+    setKind('expense');
     setCategoryId('');
-    const defaultFreq: Frequency = k === 'income' ? 'daily' : 'monthly';
-    setFrequency(defaultFreq);
-    if (defaultFreq === 'monthly') {
-      const d = defaultScheduleDay(defaultFreq);
-      setScheduleDay(d);
-      setDayText(String(d));
-    }
+    setAmountText('');
+    setFrequency('monthly');
+    const day = defaultScheduleDay('monthly');
+    setScheduleDay(day);
+    setDayText(String(day));
+    setIntervalCount(1);
+    setIntervalUnit('day');
     setPhase('form');
+  };
+
+  const selectKind = (nextKind: EntryKind) => {
+    if (kind === nextKind) {
+      return;
+    }
+    setKind(nextKind);
+    setCategoryId('');
+    const defaultFreq: Frequency = nextKind === 'income' ? 'daily' : 'monthly';
+    setFrequency(defaultFreq);
+    const day = defaultScheduleDay(defaultFreq);
+    setScheduleDay(day);
+    setDayText(String(day));
+  };
+
+  const createCustomCategory = async (name: string, icon: FeatherName): Promise<boolean> => {
+    try {
+      const category = await createCategory(db, { name, icon, kind });
+      setCats(current => [...current, category].sort((a, b) => a.sortOrder - b.sortOrder));
+      setCategoryId(category.id);
+      return true;
+    } catch (error) {
+      showError(error, 'errors.categoryCreate');
+      return false;
+    }
   };
 
   const add = async () => {
@@ -186,221 +229,288 @@ export default function RecurringSheet({ isOpen, onClose, db, presentation = 'sh
       .catch(error => showError(error, 'errors.recurringDelete'));
   };
 
-  return (
-    <SheetScaffold
-      isOpen={isOpen}
-      onClose={onClose}
-      title={t('recurring.title')}
-      accent={palette.recurring}
-      accentSoft={palette.recurringSoft}
-      presentation={presentation}>
-      <Box style={ui.body}>
-        {phase === 'list' ? (
-          <>
-            {rules.length === 0 ? (
-              <Box style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>{t('recurring.emptyTitle')}</Text>
-                <Text style={styles.emptyBody}>{t('recurring.emptyBody')}</Text>
-              </Box>
-            ) : null}
-            {rules.map(rule => (
-              <Box key={rule.id} style={[ui.row, styles.ruleCard]}>
-                <CategoryIcon
-                  id={rule.categoryId}
-                  icon={cats.find(category => category.id === rule.categoryId)?.icon}
-                  color={palette.ink}
-                  size={20}
-                />
-                <Box style={ui.spacer}>
-                  <Text style={ui.rowTitle}>{labelFor(rule.categoryId)}</Text>
-                  <Text style={ui.rowMeta}>
-                    {`${rule.kind === 'expense' ? '−' : '+'}${money(rule.amountCents)} · ${t(
-                      `recurring.${rule.frequency}` as 'recurring.monthly',
-                    )}`}
-                  </Text>
-                </Box>
-                <Pressable
-                  testID={`recurring-delete-${rule.id}`}
-                  style={ui.iconButton}
-                  onPress={() => remove(rule)}>
-                  <Trash2 width={20} height={20} color={palette.expense} strokeWidth={2} />
-                </Pressable>
-              </Box>
-            ))}
+  const selectedCategory = cats.find(category => category.id === categoryId);
+  const selectedLabel = selectedCategory
+    ? (() => {
+        const key = `category.${selectedCategory.id}` as TranslationKey;
+        const translated = t(key);
+        return translated === key ? selectedCategory.name : translated;
+      })()
+    : t('entry.chooseCategoryPlaceholder');
+  const accent = kind === 'income' ? palette.income : palette.expense;
+  const close = () => {
+    if (!initial && phase === 'form') {
+      setPhase('list');
+      return;
+    }
+    onClose();
+  };
+  const formContent = (
+    <Box style={styles.formBody}>
+      <Box style={entryStyles.kindSegment}>
+        {(['expense', 'income'] as const).map(option => {
+          const selected = kind === option;
+          return (
             <Pressable
-              testID="recurring-add"
-              style={[ui.actionButton, styles.addButton]}
-              onPress={() => setPhase('kind')}>
-              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('recurring.add')}</Text>
+              key={option}
+              testID={`recurring-kind-${option}`}
+              style={[
+                entryStyles.kindOption,
+                selected && (option === 'expense' ? entryStyles.kindOptionExpense : entryStyles.kindOptionIncome),
+              ]}
+              onPress={() => selectKind(option)}>
+              <Text style={[entryStyles.kindOptionText, selected && entryStyles.kindOptionSelectedText]}>
+                {t(option === 'expense' ? 'entry.expense' : 'entry.income')}
+              </Text>
             </Pressable>
-          </>
-        ) : null}
+          );
+        })}
+      </Box>
 
-        {phase === 'kind' ? (
-          <>
-            <Box style={styles.kindRow}>
-              <Pressable
-                testID="recurring-kind-expense"
-                style={[styles.kindCard, styles.kindCardExpense]}
-                onPress={() => pickKind('expense')}>
-                <Text style={styles.kindCardText}>{t('entry.expense')}</Text>
-              </Pressable>
-              <Pressable
-                testID="recurring-kind-income"
-                style={[styles.kindCard, styles.kindCardIncome]}
-                onPress={() => pickKind('income')}>
-                <Text style={styles.kindCardText}>{t('entry.income')}</Text>
-              </Pressable>
-            </Box>
-            <Pressable
-              testID="recurring-back"
-              style={[ui.actionButton, styles.addButton]}
-              onPress={() => setPhase('list')}>
-              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('common.back')}</Text>
-            </Pressable>
-          </>
-        ) : null}
+      <Box style={entryStyles.amountPanel}>
+        <Text style={entryStyles.amountLabel}>{`${t('entry.amount')} · ${currency}`}</Text>
+        <TextInput
+          testID="recurring-amount"
+          style={entryStyles.amountInput}
+          keyboardType="decimal-pad"
+          value={amountText}
+          onChangeText={value => setAmountText(normalizeBuffer(value))}
+          placeholder="0"
+          placeholderTextColor={palette.muted}
+          textAlign="center"
+        />
+      </Box>
 
-        {phase === 'form' ? (
-          <>
+      <Pressable
+        testID="recurring-category"
+        accessibilityRole="button"
+        accessibilityLabel={selectedLabel}
+        style={entryStyles.categorySelect}
+        onPress={() => {
+          Keyboard.dismiss();
+          setPickerOpen(true);
+        }}>
+        {selectedCategory ? (
+          <CategoryIcon id={selectedCategory.id} icon={selectedCategory.icon} color={accent} size={22} />
+        ) : null}
+        <Text style={[entryStyles.categorySelectText, !selectedCategory && entryStyles.placeholder]}>
+          {selectedLabel}
+        </Text>
+        <ChevronDown width={24} height={24} color={accent} strokeWidth={2.5} />
+      </Pressable>
+
+      <Box style={entryStyles.dateRow}>
+        <Box style={entryStyles.dateControl}>
+          <Repeat width={22} height={22} color={palette.primary} strokeWidth={2} />
+          <Box>
+            <Text style={entryStyles.dateLabel}>{t('entry.repeat')}</Text>
+            <Text style={entryStyles.dateValue}>{t(`recurring.${frequency}` as 'recurring.monthly')}</Text>
+          </Box>
+        </Box>
+        <Box style={entryStyles.dateControl}>
+          <CreditCard width={22} height={22} color={palette.primary} strokeWidth={2} />
+          <Box>
+            <Text style={entryStyles.dateLabel}>{t('entry.account')}</Text>
+            <Text style={entryStyles.dateValue}>{account?.name ?? currency}</Text>
+          </Box>
+        </Box>
+      </Box>
+
+      <Box style={styles.detailFields}>
+        <Text style={ui.section}>{t('recurring.frequency')}</Text>
+        <Box style={ui.chips}>
+          {FREQUENCIES.map(f => (
             <Pressable
-              testID="recurring-back"
-              style={styles.backButton}
-              onPress={() => (initial ? onClose() : setPhase('kind'))}>
-              <Text style={styles.backText}>{`‹ ${t('common.back')}`}</Text>
+              key={f}
+              testID={`recurring-freq-${f}`}
+              style={[ui.chip, frequency === f && ui.chipActive]}
+              onPress={() => {
+                animateLayout();
+                setFrequency(f);
+                if (f === 'weekly' || f === 'monthly') {
+                  const d = defaultScheduleDay(f);
+                  setScheduleDay(d);
+                  setDayText(String(d));
+                }
+              }}>
+              <Text style={[ui.chipText, frequency === f && ui.chipTextActive]}>
+                {t(`recurring.${f}` as 'recurring.monthly')}
+              </Text>
             </Pressable>
-            <Text style={ui.section}>{t('recurring.category')}</Text>
+          ))}
+        </Box>
+
+        {frequency === 'weekly' ? (
+          <>
+            <Text style={ui.section}>{t('recurring.weekday')}</Text>
             <Box style={ui.chips}>
-              {kindCats.map(cat => {
-                const active = categoryId === cat.id;
-                return (
-                  <Pressable
-                    key={cat.id}
-                    testID={`recurring-cat-${cat.id}`}
-                    style={[ui.chip, active && ui.chipActive]}
-                    onPress={() => setCategoryId(cat.id)}>
-                    <Text style={[ui.chipText, active && ui.chipTextActive]}>{labelFor(cat.id)}</Text>
-                  </Pressable>
-                );
-              })}
-            </Box>
-            <Text style={ui.section}>{t('recurring.amount')}</Text>
-            <TextInput
-              testID="recurring-amount"
-              style={ui.input}
-              keyboardType="decimal-pad"
-              value={amountText}
-              onChangeText={setAmountText}
-              placeholder="0"
-              placeholderTextColor={palette.muted}
-            />
-            <Text style={ui.section}>{t('recurring.frequency')}</Text>
-            <Box style={ui.chips}>
-              {FREQUENCIES.map(f => (
+              {weekdayOptions.map(w => (
                 <Pressable
-                  key={f}
-                  testID={`recurring-freq-${f}`}
-                  style={[ui.chip, frequency === f && ui.chipActive]}
-                  onPress={() => {
-                    setFrequency(f);
-                    if (f === 'weekly' || f === 'monthly') {
-                      const d = defaultScheduleDay(f);
-                      setScheduleDay(d);
-                      setDayText(String(d));
-                    }
-                  }}>
-                  <Text style={[ui.chipText, frequency === f && ui.chipTextActive]}>
-                    {t(`recurring.${f}` as 'recurring.monthly')}
+                  key={w.value}
+                  testID={`recurring-wd-${w.value}`}
+                  style={[ui.chip, scheduleDay === w.value && ui.chipActive]}
+                  onPress={() => setScheduleDay(w.value)}>
+                  <Text style={[ui.chipText, scheduleDay === w.value && ui.chipTextActive]}>
+                    {w.label}
                   </Text>
                 </Pressable>
               ))}
             </Box>
+          </>
+        ) : null}
 
-            {frequency === 'weekly' ? (
-              <>
-                <Text style={ui.section}>{t('recurring.weekday')}</Text>
-                <Box style={ui.chips}>
-                  {weekdayOptions.map(w => (
-                    <Pressable
-                      key={w.value}
-                      testID={`recurring-wd-${w.value}`}
-                      style={[ui.chip, scheduleDay === w.value && ui.chipActive]}
-                      onPress={() => setScheduleDay(w.value)}>
-                      <Text style={[ui.chipText, scheduleDay === w.value && ui.chipTextActive]}>
-                        {w.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </Box>
-              </>
-            ) : null}
+        {frequency === 'monthly' ? (
+          <>
+            <Text style={ui.section}>{t('recurring.dayOfMonth')}</Text>
+            <TextInput
+              testID="recurring-dom"
+              style={ui.input}
+              keyboardType="number-pad"
+              value={dayText}
+              onChangeText={value => {
+                setDayText(value);
+                const parsed = parseInt(value, 10);
+                if (Number.isFinite(parsed)) {
+                  setScheduleDay(Math.min(Math.max(parsed, 1), 31));
+                }
+              }}
+              placeholder="1"
+              placeholderTextColor={palette.muted}
+            />
+          </>
+        ) : null}
 
-            {frequency === 'monthly' ? (
-              <>
-                <Text style={ui.section}>{t('recurring.dayOfMonth')}</Text>
-                <TextInput
-                  testID="recurring-dom"
-                  style={ui.input}
-                  keyboardType="number-pad"
-                  value={dayText}
-                  onChangeText={value => {
-                    setDayText(value);
-                    const parsed = parseInt(value, 10);
-                    if (Number.isFinite(parsed)) {
-                      setScheduleDay(Math.min(Math.max(parsed, 1), 31));
-                    }
-                  }}
-                  placeholder="1"
-                  placeholderTextColor={palette.muted}
-                />
-              </>
-            ) : null}
-
-            {frequency === 'custom' ? (
-              <>
-                <Text style={ui.section}>{t('recurring.custom')}</Text>
-                <Box style={ui.chips}>
-                  <TextInput
-                    testID="recurring-count"
-                    style={styles.daysInput}
-                    keyboardType="number-pad"
-                    value={String(intervalCount)}
-                    onChangeText={value => {
-                      const parsed = parseInt(value, 10);
-                      if (Number.isFinite(parsed) && parsed > 0) {
-                        setIntervalCount(Math.min(parsed, 365));
-                      }
-                    }}
-                    placeholder="1"
-                    placeholderTextColor={palette.muted}
-                  />
-                  {UNITS.map(u => {
-                    const active = intervalUnit === u;
-                    return (
-                      <Pressable
-                        key={u}
-                        testID={`recurring-unit-${u}`}
-                        style={[ui.chip, active && ui.chipActive]}
-                        onPress={() => setIntervalUnit(u)}>
-                        <Text style={[ui.chipText, active && ui.chipTextActive]}>
-                          {t(`period.${u}` as 'period.day')}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </Box>
-              </>
-            ) : null}
-
-            <Pressable
-              testID="recurring-save"
-              style={[ui.actionButton, styles.addButton]}
-              onPress={add}>
-              <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('common.save')}</Text>
-            </Pressable>
+        {frequency === 'custom' ? (
+          <>
+            <Text style={ui.section}>{t('recurring.custom')}</Text>
+            <Box style={ui.chips}>
+              <TextInput
+                testID="recurring-count"
+                style={styles.daysInput}
+                keyboardType="number-pad"
+                value={String(intervalCount)}
+                onChangeText={value => {
+                  const parsed = parseInt(value, 10);
+                  if (Number.isFinite(parsed) && parsed > 0) {
+                    setIntervalCount(Math.min(parsed, 365));
+                  }
+                }}
+                placeholder="1"
+                placeholderTextColor={palette.muted}
+              />
+              {UNITS.map(u => {
+                const active = intervalUnit === u;
+                return (
+                  <Pressable
+                    key={u}
+                    testID={`recurring-unit-${u}`}
+                    style={[ui.chip, active && ui.chipActive]}
+                    onPress={() => setIntervalUnit(u)}>
+                    <Text style={[ui.chipText, active && ui.chipTextActive]}>
+                      {t(`period.${u}` as 'period.day')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </Box>
           </>
         ) : null}
       </Box>
-    </SheetScaffold>
+
+      <Pressable
+        testID="recurring-save"
+        style={[ui.actionButton, styles.addButton, styles.formSave]}
+        onPress={add}>
+        <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('common.save')}</Text>
+      </Pressable>
+    </Box>
+  );
+
+  return (
+    <>
+      <SheetScaffold
+        isOpen={isOpen && !initial}
+        onClose={close}
+        title={initial ? t('entry.repeatMovement') : t('recurring.title')}
+        accent={palette.recurring}
+        accentSoft={palette.recurringSoft}
+        presentation={presentation}
+        pageHeaderMode={initial ? 'close' : presentation === 'page' ? 'settings' : 'back'}
+        onOpenSettings={onOpenSettings}
+        showSheetTitle={!initial}>
+        <Box style={ui.body}>
+          {rules.length === 0 ? (
+            <Box style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>{t('recurring.emptyTitle')}</Text>
+              <Text style={styles.emptyBody}>{t('recurring.emptyBody')}</Text>
+            </Box>
+          ) : null}
+          {rules.map(rule => (
+            <Box key={rule.id} style={[ui.row, styles.ruleCard]}>
+              <CategoryIcon
+                id={rule.categoryId}
+                icon={cats.find(category => category.id === rule.categoryId)?.icon}
+                color={palette.ink}
+                size={20}
+              />
+              <Box style={ui.spacer}>
+                <Text style={ui.rowTitle}>{labelFor(rule.categoryId)}</Text>
+                <Text style={ui.rowMeta}>
+                  {`${rule.kind === 'expense' ? '−' : '+'}${money(rule.amountCents)} · ${t(
+                    `recurring.${rule.frequency}` as 'recurring.monthly',
+                  )}`}
+                </Text>
+              </Box>
+              <Pressable
+                testID={`recurring-delete-${rule.id}`}
+                style={ui.iconButton}
+                onPress={() => remove(rule)}>
+                <Trash2 width={20} height={20} color={palette.expense} strokeWidth={2} />
+              </Pressable>
+            </Box>
+          ))}
+          <Pressable
+            testID="recurring-add"
+            style={[ui.actionButton, styles.addButton]}
+            onPress={startForm}>
+            <Text style={[ui.actionButtonText, styles.addButtonText]}>{t('recurring.add')}</Text>
+          </Pressable>
+        </Box>
+      </SheetScaffold>
+      {!initial ? (
+        <SheetScaffold
+          isOpen={isOpen && phase === 'form'}
+          onClose={close}
+          title={t('recurring.add')}
+          accent={accent}
+          accentSoft={kind === 'income' ? palette.incomeSoft : palette.expenseSoft}
+          presentation="sheet"
+          showSheetTitle={false}>
+          {formContent}
+        </SheetScaffold>
+      ) : (
+        <SheetScaffold
+          isOpen={isOpen && phase === 'form'}
+          onClose={close}
+          title={t('entry.repeatMovement')}
+          accent={accent}
+          accentSoft={kind === 'income' ? palette.incomeSoft : palette.expenseSoft}
+          presentation={presentation}
+          pageHeaderMode="close"
+          showSheetTitle={false}>
+          {formContent}
+        </SheetScaffold>
+      )}
+      <CategoryPickerModal
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        categories={kindCats}
+        selectedId={categoryId || null}
+        kind={kind}
+        onSelect={setCategoryId}
+        onCreate={createCustomCategory}
+        presentation="sheet"
+      />
+    </>
   );
 }

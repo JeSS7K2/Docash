@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   Pressable,
   SafeAreaView,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { Database } from '@nozbe/watermelondb';
 import { database, ensurePerformanceSetup } from '../db/database';
 import {
@@ -23,6 +25,7 @@ import { seedMockData } from '../db/mock';
 import { MOCK_DATA } from '../config/flags';
 import { deleteTransaction, type EntryKind } from '../db/operations';
 import { runDueRecurring } from '../db/recurring';
+import { activateStreaks, getStreakState, type StreakState } from '../db/streaks';
 import { runNotificationChecks, syncScheduledNotifications } from '../notifications/engine';
 import { playSound } from '../services/sound';
 import { saveWidgetSnapshot } from '../state/widgetData';
@@ -41,13 +44,19 @@ import EntrySheet from './components/EntrySheet';
 import NotificationsSheet from './components/NotificationsSheet';
 import PeriodFilter from './components/PeriodFilter';
 import RecurringSheet from './components/RecurringSheet';
+import StreakCard from './components/StreakCard';
+import StreakProgressSheet from './components/StreakProgressSheet';
+import StreakReviewSheet from './components/StreakReviewSheet';
+import StreakSettingsSheet from './components/StreakSettingsSheet';
 import SettingsSheet from './components/SettingsSheet';
 import TopBar from './components/TopBar';
 import TxRow, { type TxRowData } from './TxRow';
+import { Icon, type FeatherName } from './icons';
 import { makeStyles } from './HomeScreen.styles';
 import { useToast } from './Toast';
 import type Account from '../db/models/Account';
 import type Category from '../db/models/Category';
+import type Budget from '../db/models/Budget';
 
 const CATEGORY_FALLBACK: TranslationKey = 'category.cat_other_exp';
 type MainTab = 'home' | 'movements' | 'plan' | 'recurring';
@@ -74,6 +83,10 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const [activeTab, setActiveTab] = useState<MainTab>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [streakReviewOpen, setStreakReviewOpen] = useState(false);
+  const [streakProgressOpen, setStreakProgressOpen] = useState(false);
+  const [streakSettingsOpen, setStreakSettingsOpen] = useState(false);
+  const [streakState, setStreakState] = useState<StreakState | null>(null);
   const [recurringFromEntry, setRecurringFromEntry] = useState<{
     kind: EntryKind;
     categoryId?: string;
@@ -84,8 +97,15 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const [balance, setBalance] = useState(0);
   const [incomeTotal, setIncomeTotal] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
+  const [hasBudget, setHasBudget] = useState(false);
   const [earliestTransactionDate, setEarliestTransactionDate] = useState<number | null>(null);
   const [rows, setRows] = useState<TxRowData[]>([]);
+  const tabProgress = useSharedValue(1);
+  const hasRenderedTabs = useRef(false);
+  const tabAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: tabProgress.value,
+    transform: [{ translateY: (1 - tabProgress.value) * 10 }],
+  }));
 
   const period = useFilters(s => s.period);
   const anchorMs = useFilters(s => s.anchorMs);
@@ -177,12 +197,65 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
     };
   }, [db, period, anchorMs, t, locale, showError]);
 
+  useEffect(() => {
+    const subscription = db.get<Budget>('budgets').query().observe().subscribe(budgets => {
+      setHasBudget(budgets.length > 0);
+    });
+    return () => subscription.unsubscribe();
+  }, [db]);
+
+  useEffect(() => {
+    if (!hasRenderedTabs.current) {
+      hasRenderedTabs.current = true;
+      return;
+    }
+    tabProgress.value = 0;
+    tabProgress.value = withTiming(1, { duration: 240 });
+  }, [activeTab, tabProgress]);
+
   const minDate = Math.min(installedAt || Infinity, earliestTransactionDate || Infinity);
   const canGoPrev = currentRange ? currentRange.from > minDate : true;
   const periodLabel = period === 'all'
     ? t('period.allTime')
     : labelForPeriod(period, anchorMs, locale === 'es' ? 'es-ES' : 'en-US');
+  // Las hojas de racha son Actionsheets: Inicio debe permanecer visible debajo del backdrop.
   const routeOpen = entryOpen || settingsOpen || notificationsOpen;
+
+  const refreshStreak = useCallback(async () => {
+    try {
+      setStreakState(await getStreakState(db));
+    } catch (error) {
+      showError(error, 'errors.streakLoad');
+    }
+  }, [db, showError]);
+
+  useEffect(() => {
+    refreshStreak().catch(() => {});
+  }, [refreshStreak]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        refreshStreak().catch(() => {});
+        syncScheduledNotifications(db).catch(error => showError(error, 'errors.generic'));
+      }
+    });
+    const timer = setInterval(() => refreshStreak().catch(() => {}), 60_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [db, refreshStreak, showError]);
+
+  const activateAndReview = async () => {
+    try {
+      await activateStreaks(db);
+      await refreshStreak();
+      setStreakReviewOpen(true);
+    } catch (error) {
+      showError(error, 'errors.streakSave');
+    }
+  };
 
   const editRow = (id: string) => {
     const row = rows.find(item => item.id === id);
@@ -193,6 +266,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         amountCents: row.amountCents,
         categoryId: row.categoryId,
         note: row.note,
+        occurredOn: row.occurredOn,
       });
     }
   };
@@ -220,39 +294,63 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       {!routeOpen ? (
         <>
           {activeTab === 'home' ? (
+            <Animated.View style={[styles.screenTransition, tabAnimatedStyle]}>
             <ScrollView contentContainerStyle={styles.homeContent}>
-              <TopBar userName={userName} title={t('nav.home')} onOpenSettings={() => setSettingsOpen(true)} />
-              <Text style={styles.monthLabel}>{periodLabel}</Text>
+              <TopBar userName={userName} title={t('nav.home')} flush onOpenSettings={() => setSettingsOpen(true)} />
               <View style={styles.balanceCard}>
                 <BalanceHeader balanceCents={balance} accountName={accountName} accountId={accountId} variant="hero" />
               </View>
+              <EntryActions onExpense={() => openSheet('expense')} />
+              <Text style={styles.monthLabel}>{periodLabel}</Text>
               <View style={styles.summaryRow}>
                 <View style={[styles.summaryCard, styles.incomeCard]}>
-                  <Text style={styles.summaryLabel}>{t('home.monthIncome')}</Text>
-                  <Text style={styles.summaryAmount}>{`+ ${money(incomeTotal)}`}</Text>
+                  <View style={styles.summaryIconIncome}><Icon name="ArrowDown" color={palette.income} size={25} strokeWidth={2.5} /></View>
+                  <View>
+                    <Text style={styles.summaryLabel}>{t('home.monthIncome')}</Text>
+                    <Text style={[styles.summaryAmount, styles.incomeAmount]}>{`+${money(incomeTotal)}`}</Text>
+                  </View>
                 </View>
                 <View style={[styles.summaryCard, styles.expenseCard]}>
-                  <Text style={styles.summaryLabel}>{t('home.monthExpense')}</Text>
-                  <Text style={styles.summaryAmount}>{money(expenseTotal)}</Text>
+                  <View style={styles.summaryIconExpense}><Icon name="ArrowUp" color={palette.ink} size={25} strokeWidth={2.5} /></View>
+                  <View>
+                    <Text style={styles.summaryLabel}>{t('home.monthExpense')}</Text>
+                    <Text style={[styles.summaryAmount, styles.expenseAmount]}>{money(expenseTotal)}</Text>
+                  </View>
                 </View>
               </View>
-              <EntryActions onExpense={() => openSheet('expense')} onIncome={() => openSheet('income')} />
-              <View style={styles.planPrompt}>
-                <Text style={styles.cardTitle}>{t('home.planPromptTitle')}</Text>
-                <Text style={styles.helperText}>{t('home.planPromptBody')}</Text>
-                <Pressable style={styles.primaryButton} onPress={() => setActiveTab('plan')}>
-                  <Text style={styles.primaryButtonText}>{t('home.createBudget')}</Text>
+              <StreakCard
+                state={streakState}
+                onActivate={activateAndReview}
+                onReview={() => setStreakReviewOpen(true)}
+                onProgress={() => setStreakProgressOpen(true)}
+              />
+              {!hasBudget ? <View style={styles.planPrompt}>
+                <View style={styles.planIcon}><Icon name="PieChart" color={palette.primary} size={32} strokeWidth={2.5} /></View>
+                <View style={styles.planCopy}>
+                  <Text style={styles.cardTitle}>{t('home.planPromptTitle')}</Text>
+                  <Text style={styles.helperText}>{t('home.planPromptBody', { amount: money(balance) })}</Text>
+                  <Pressable style={styles.budgetButton} onPress={() => setActiveTab('plan')}>
+                    <Text style={styles.budgetButtonText}>{t('home.createBudget')}</Text>
+                    <Icon name="ChevronRight" color={palette.primary} size={24} strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+              </View> : null}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{t('home.recent')}</Text>
+                <Pressable onPress={() => setActiveTab('movements')} style={styles.viewAllButton}>
+                  <Text style={styles.viewAllText}>{t('home.viewAll')}</Text>
+                  <Icon name="ChevronRight" color={palette.primary} size={24} strokeWidth={2.5} />
                 </Pressable>
               </View>
-              <Text style={styles.sectionTitle}>{t('home.recent')}</Text>
               {rows.slice(0, 3).map(row => (
                 <TxRow key={row.id} row={row} onPress={editRow} onDelete={confirmDelete} />
               ))}
             </ScrollView>
+            </Animated.View>
           ) : null}
 
           {activeTab === 'movements' ? (
-            <MovementsPage
+            <Animated.View style={[styles.screenTransition, tabAnimatedStyle]}><MovementsPage
               rows={rows}
               period={period}
               anchorMs={anchorMs}
@@ -263,24 +361,26 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
               onEdit={editRow}
               onDelete={confirmDelete}
               onAdd={() => openSheet('expense')}
-            />
+            /></Animated.View>
           ) : null}
 
           {activeTab === 'plan' ? (
-            <BudgetsSheet
+            <Animated.View style={[styles.screenTransition, tabAnimatedStyle]}><BudgetsSheet
               isOpen
               onClose={() => setActiveTab('home')}
+              onOpenSettings={() => setSettingsOpen(true)}
               db={db}
               presentation="page"
-            />
+            /></Animated.View>
           ) : null}
           {activeTab === 'recurring' ? (
-            <RecurringSheet
+            <Animated.View style={[styles.screenTransition, tabAnimatedStyle]}><RecurringSheet
               isOpen
               onClose={() => setActiveTab('home')}
+              onOpenSettings={() => setSettingsOpen(true)}
               db={db}
               presentation="page"
-            />
+            /></Animated.View>
           ) : null}
           <BottomTabs active={activeTab} onChange={setActiveTab} />
         </>
@@ -293,6 +393,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         db={db}
         presentation="page"
         onOpenNotifications={() => { setSettingsOpen(false); setNotificationsOpen(true); }}
+        onOpenStreakSettings={() => { setSettingsOpen(false); setStreakSettingsOpen(true); }}
       />
       <NotificationsSheet
         isOpen={notificationsOpen}
@@ -303,8 +404,31 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         isOpen={recurringFromEntry !== null}
         onClose={() => setRecurringFromEntry(null)}
         db={db}
-        presentation="page"
+        presentation="sheet"
         initial={recurringFromEntry ?? undefined}
+      />
+      <StreakReviewSheet
+        db={db}
+        isOpen={streakReviewOpen}
+        onClose={() => setStreakReviewOpen(false)}
+        onAddMovement={() => { setStreakReviewOpen(false); openSheet('expense'); }}
+        onEditMovement={id => { setStreakReviewOpen(false); editRow(id); }}
+        onChanged={refreshStreak}
+        presentation="sheet"
+      />
+      <StreakProgressSheet
+        db={db}
+        isOpen={streakProgressOpen}
+        onClose={() => setStreakProgressOpen(false)}
+        onOpenSettings={() => { setStreakProgressOpen(false); setStreakSettingsOpen(true); }}
+        presentation="sheet"
+      />
+      <StreakSettingsSheet
+        db={db}
+        isOpen={streakSettingsOpen}
+        onClose={() => setStreakSettingsOpen(false)}
+        onChanged={refreshStreak}
+        presentation="sheet"
       />
     </SafeAreaView>
   );
@@ -395,6 +519,7 @@ function MovementsPage({
 
 function BottomTabs({ active, onChange }: { active: MainTab; onChange: (tab: MainTab) => void }) {
   const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const { t } = useTranslation();
   const tabs: { id: MainTab; label: string }[] = [
     { id: 'home', label: t('nav.home') },
@@ -402,6 +527,12 @@ function BottomTabs({ active, onChange }: { active: MainTab; onChange: (tab: Mai
     { id: 'plan', label: t('nav.plan') },
     { id: 'recurring', label: t('nav.recurring') },
   ];
+  const icons: Record<MainTab, FeatherName> = {
+    home: 'Home',
+    movements: 'FileText',
+    plan: 'PieChart',
+    recurring: 'RefreshCw',
+  };
   return (
     <View style={styles.bottomTabs}>
       {tabs.map(tab => (
@@ -412,6 +543,7 @@ function BottomTabs({ active, onChange }: { active: MainTab; onChange: (tab: Mai
           accessibilityState={{ selected: active === tab.id }}
           style={[styles.tabButton, active === tab.id && styles.tabButtonActive]}
           onPress={() => onChange(tab.id)}>
+          <Icon name={icons[tab.id]} color={active === tab.id ? palette.primary : palette.muted} size={25} strokeWidth={2.2} />
           <Text style={[styles.tabLabel, active === tab.id && styles.tabLabelActive]}>{tab.label}</Text>
         </Pressable>
       ))}

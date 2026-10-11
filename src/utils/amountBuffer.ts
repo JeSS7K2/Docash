@@ -19,6 +19,18 @@ const MAX_DECIMALS = 2;
 
 export const INITIAL_BUFFER = '0';
 
+/** Normaliza texto proveniente del teclado nativo sin aceptar más precisión de la soportada. */
+export function normalizeBuffer(value: string): string {
+  const raw = value.replace(',', '.').replace(/[^\d.]/g, '');
+  if (!raw) {
+    return INITIAL_BUFFER;
+  }
+  const [rawInt = '0', ...rawDecimals] = raw.split('.');
+  const intPart = (rawInt.replace(/^0+(?=\d)/, '') || '0').slice(0, MAX_INTEGER_DIGITS);
+  const decimals = rawDecimals.join('').slice(0, MAX_DECIMALS);
+  return raw.includes('.') ? `${intPart}.${decimals}` : intPart;
+}
+
 /** Convierte céntimos a buffer editable (8800 -> "88", 8850 -> "88.5"). */
 export function centsToBuffer(cents: number): string {
   const abs = Math.abs(cents);

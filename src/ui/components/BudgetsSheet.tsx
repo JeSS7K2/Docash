@@ -25,12 +25,13 @@ import { useToast } from '../Toast';
 interface BudgetsSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSettings?: () => void;
   db: Database;
   presentation?: 'sheet' | 'page';
 }
 
 /** Lista limpia de presupuestos; se configura en un modal dedicado. */
-export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'sheet' }: BudgetsSheetProps) {
+export default function BudgetsSheet({ isOpen, onClose, onOpenSettings, db, presentation = 'sheet' }: BudgetsSheetProps) {
   const ui = useThemedStyles(makeSheetUi);
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -116,6 +117,8 @@ export default function BudgetsSheet({ isOpen, onClose, db, presentation = 'shee
         accentSoft={palette.budgetSoft}
         closeTestID="budgets-close"
         presentation={presentation}
+        pageHeaderMode={presentation === 'page' ? 'settings' : 'back'}
+        onOpenSettings={onOpenSettings}
         fixedContent={planTabs}>
         <Box style={ui.body}>
           {view === 'budgets' ? (

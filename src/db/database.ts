@@ -10,6 +10,9 @@ import TransferRecord from './models/TransferRecord';
 import Budget from './models/Budget';
 import RecurringRule from './models/RecurringRule';
 import Goal from './models/Goal';
+import StreakSettings from './models/StreakSettings';
+import DailyReview from './models/DailyReview';
+import MilestoneUnlock from './models/MilestoneUnlock';
 
 const adapter = new SQLiteAdapter({
   dbName: 'docash',
@@ -27,7 +30,7 @@ const adapter = new SQLiteAdapter({
 // Singleton. Prohibido instanciar Database en componentes.
 export const database = new Database({
   adapter,
-  modelClasses: [User, Account, Category, Transaction, TransferRecord, Budget, RecurringRule, Goal],
+  modelClasses: [User, Account, Category, Transaction, TransferRecord, Budget, RecurringRule, Goal, StreakSettings, DailyReview, MilestoneUnlock],
 });
 
 export type AppDatabase = typeof database;

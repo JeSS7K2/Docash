@@ -4,6 +4,7 @@ import { useMoney } from '../../state/useMoney';
 import { useTranslation } from '../../i18n';
 import { usePalette, useThemedStyles } from '../../theme';
 import { AccountIcon } from '../icons';
+import { ChevronRight } from 'react-native-feather';
 import { makeStyles } from './BalanceHeader.styles';
 
 interface BalanceHeaderProps {
@@ -21,17 +22,20 @@ export default function BalanceHeader({ balanceCents, accountName, accountId, va
   const { t } = useTranslation();
   return (
       <Box style={[styles.root, variant === 'hero' && styles.heroRoot]}>
-      <Text style={[styles.label, variant === 'hero' && styles.heroText]}>
-        {variant === 'hero' ? t('home.currentBalance') : t('balance.total')}
-      </Text>
-      <Text style={[styles.balance, variant === 'hero' && styles.heroText]} testID="balance-total">
-        {money(balanceCents)}
-      </Text>
-      <Box style={styles.account}>
-        <AccountIcon id={accountId} color={palette.muted} size={16} />
+      <Box style={variant === 'hero' ? styles.heroContent : undefined}>
+        <Text style={[styles.label, variant === 'hero' && styles.heroText]}>
+          {variant === 'hero' ? t('home.currentBalance') : t('balance.total')}
+        </Text>
+        <Text style={[styles.balance, variant === 'hero' && styles.heroText]} testID="balance-total">
+          {money(balanceCents)}
+        </Text>
+      </Box>
+      <Box style={[styles.account, variant === 'hero' && styles.heroAccount]}>
+        <AccountIcon id={accountId} color={variant === 'hero' ? '#FFFFFF' : palette.muted} size={variant === 'hero' ? 40 : 16} />
         <Text style={[styles.accountName, variant === 'hero' && styles.heroMuted]} testID="account-name">
           {accountName}
         </Text>
+        {variant === 'hero' ? <ChevronRight width={28} height={28} color="#FFFFFF" strokeWidth={2} /> : null}
       </Box>
     </Box>
   );

@@ -4,12 +4,15 @@ import type { DirtyRaw } from '@nozbe/watermelondb/RawRecord';
 
 export interface BackupFile {
   app: 'docash';
-  version: 1;
+  version: 2;
   exportedAt: number;
   accounts: DirtyRaw[];
   categories: DirtyRaw[];
   transactions: DirtyRaw[];
   transfers: DirtyRaw[];
+  streak_settings: DirtyRaw[];
+  daily_reviews: DirtyRaw[];
+  milestone_unlocks: DirtyRaw[];
 }
 
 export interface ImportCounts {
@@ -17,26 +20,43 @@ export interface ImportCounts {
   categories: number;
   transactions: number;
   transfers: number;
+  streak_settings: number;
+  daily_reviews: number;
+  milestone_unlocks: number;
 }
 
-const TABLES = ['accounts', 'categories', 'transactions', 'transfers'] as const;
+const TABLES = [
+  'accounts',
+  'categories',
+  'transactions',
+  'transfers',
+  'streak_settings',
+  'daily_reviews',
+  'milestone_unlocks',
+] as const;
 type TableName = (typeof TABLES)[number];
 
 export async function exportData(db: Database): Promise<string> {
-  const [accounts, categories, transactions, transfers] = await Promise.all([
+  const [accounts, categories, transactions, transfers, streakSettings, dailyReviews, milestones] = await Promise.all([
     db.get('accounts').query().fetch(),
     db.get('categories').query().fetch(),
     db.get('transactions').query().fetch(),
     db.get('transfers').query().fetch(),
+    db.get('streak_settings').query().fetch(),
+    db.get('daily_reviews').query().fetch(),
+    db.get('milestone_unlocks').query().fetch(),
   ]);
   const dump: BackupFile = {
     app: 'docash',
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     accounts: accounts.map(r => r._raw),
     categories: categories.map(r => r._raw),
     transactions: transactions.map(r => r._raw),
     transfers: transfers.map(r => r._raw),
+    streak_settings: streakSettings.map(r => r._raw),
+    daily_reviews: dailyReviews.map(r => r._raw),
+    milestone_unlocks: milestones.map(r => r._raw),
   };
   return JSON.stringify(dump);
 }
@@ -64,7 +84,15 @@ export async function importData(db: Database, json: string): Promise<ImportCoun
     throw new Error('Invalid backup format');
   }
 
-  const counts: ImportCounts = { accounts: 0, categories: 0, transactions: 0, transfers: 0 };
+  const counts: ImportCounts = {
+    accounts: 0,
+    categories: 0,
+    transactions: 0,
+    transfers: 0,
+    streak_settings: 0,
+    daily_reviews: 0,
+    milestone_unlocks: 0,
+  };
 
   await db.write(async () => {
     const operations: Model[] = [];

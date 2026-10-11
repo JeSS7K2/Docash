@@ -1,31 +1,33 @@
 import { StyleSheet } from 'react-native';
-import { spacing, radius, type, type Palette } from '../theme';
+import { spacing, type, type Palette } from '../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: spacing.xl,
-      minHeight: 64,
-      backgroundColor: c.faint,
-      borderRadius: radius.action,
-      marginBottom: spacing.sm,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: 0,
+      minHeight: 76,
+      backgroundColor: c.paper,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
     },
     iconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.icon,
-      backgroundColor: c.faint,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: spacing.lg,
     },
+    iconIncome: { backgroundColor: c.incomeSoft },
+    iconExpense: { backgroundColor: c.primarySoft },
     meta: { flex: 1, marginRight: spacing.md },
-    title: { fontSize: type.titleSize, fontWeight: type.titleWeight, color: c.ink },
-    subtitle: { fontSize: type.metaSize, color: c.muted, marginTop: spacing.xs },
-    amount: { fontSize: type.titleSize, fontWeight: '700' },
+    title: { fontSize: 17, fontWeight: '700', color: c.ink },
+    subtitle: { fontSize: type.bodySize, color: c.muted, marginTop: spacing.xs },
+    amount: { fontSize: 17, fontWeight: '800' },
     deleteAction: {
       width: 72,
       alignItems: 'center',

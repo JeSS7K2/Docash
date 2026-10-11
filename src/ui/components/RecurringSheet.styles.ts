@@ -3,8 +3,11 @@ import { radius, spacing, type, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    formBody: { paddingBottom: spacing.lg },
+    detailFields: { marginHorizontal: 24 },
     chipsSpacing: { marginTop: spacing.md },
     addButton: { marginTop: spacing.md, backgroundColor: c.primary, minHeight: 48 },
+    formSave: { marginHorizontal: 24 },
     addButtonText: { color: c.onAction },
     emptyCard: {
       backgroundColor: c.primarySoft,
@@ -45,6 +48,8 @@ export const makeStyles = (c: Palette) =>
     kindCardExpense: { backgroundColor: c.expense },
     kindCardIncome: { backgroundColor: c.income },
     kindCardText: { color: c.ink, fontSize: type.actionSize, fontWeight: '800' },
-    backButton: { alignSelf: 'flex-start', marginBottom: spacing.md, paddingVertical: spacing.sm },
+    backButton: { alignSelf: 'flex-start', marginHorizontal: 24, marginBottom: spacing.md, paddingVertical: spacing.sm },
     backText: { color: c.muted, fontSize: type.bodySize },
+    summaryCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 52, paddingHorizontal: spacing.lg, borderRadius: radius.action, backgroundColor: c.faint },
+    summaryText: { color: c.ink, fontSize: type.bodySize, fontWeight: '600' },
   });

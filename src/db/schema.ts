@@ -1,9 +1,9 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
-// Esquema canónico v1. Montos en céntimos (INTEGER), claves de agregación
+// Esquema canónico v8. Montos en céntimos (INTEGER), claves de agregación
 // desnormalizadas (month_key/date_key) para evitar JOINs en el home.
 // Los índices compuestos viven en database.ts (ensurePerformanceSetup).
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export default appSchema({
   version: SCHEMA_VERSION,
@@ -112,6 +112,39 @@ export default appSchema({
         { name: 'include_balance', type: 'boolean', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'streak_settings',
+      columns: [
+        { name: 'enabled', type: 'boolean' },
+        { name: 'review_time_zone', type: 'string' },
+        { name: 'activated_at_utc', type: 'number' },
+        { name: 'show_home_card', type: 'boolean' },
+        { name: 'celebrations_enabled', type: 'boolean' },
+        { name: 'reminder_enabled', type: 'boolean' },
+        { name: 'reminder_local_time', type: 'string', isOptional: true },
+        { name: 'last_evaluated_local_date', type: 'string', isOptional: true },
+        { name: 'last_observed_at_utc', type: 'number', isOptional: true },
+        { name: 'schema_version', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'daily_reviews',
+      columns: [
+        { name: 'local_date', type: 'string', isIndexed: true },
+        { name: 'confirmed_at_utc', type: 'number' },
+        { name: 'timezone_at_confirmation', type: 'string' },
+        { name: 'method', type: 'string' },
+        { name: 'financial_revision_at_confirmation', type: 'number', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: 'milestone_unlocks',
+      columns: [
+        { name: 'milestone', type: 'string', isIndexed: true },
+        { name: 'unlocked_at_utc', type: 'number' },
+        { name: 'acknowledged_at_utc', type: 'number', isOptional: true },
       ],
     }),
   ],

@@ -1,14 +1,15 @@
 import { StyleSheet } from 'react-native';
-import { radius, spacing, type, type Palette } from '../../theme';
+import { radius, spacing, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     page: { flex: 1 },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: c.overlay },
-    pageHeader: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.md },
-    pageTitle: { fontSize: 22, fontWeight: '800' },
-    pageBack: { fontSize: type.metaSize, marginTop: spacing.md },
-    pageScroll: { paddingBottom: spacing.xl },
+    pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
+    pageTitle: { fontSize: 34, lineHeight: 40, fontWeight: '800' },
+    pageBack: { fontSize: 18, fontWeight: '700' },
+    pageHeaderSlot: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    pageScroll: { paddingBottom: 32 },
     content: {
       backgroundColor: c.paper,
       borderTopLeftRadius: 24,
@@ -16,8 +17,14 @@ export const makeStyles = (c: Palette) =>
       paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
       maxHeight: '92%',
+      overflow: 'hidden',
+      elevation: 18,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: -6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
     },
-    sheetInner: { flexShrink: 1 },
+    dragHandle: { width: '100%', alignItems: 'center' },
     scrollBody: { paddingBottom: spacing.md },
     accentBar: {
       width: 44,
@@ -30,6 +37,7 @@ export const makeStyles = (c: Palette) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      position: 'relative',
       marginHorizontal: spacing.xl,
       paddingHorizontal: spacing.xl,
       paddingVertical: spacing.md,

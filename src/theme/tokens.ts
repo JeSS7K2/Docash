@@ -1,12 +1,12 @@
 // Geometría y tipografía (independientes del tema).
 export const type = {
-  balanceSize: 34,
+  balanceSize: 48,
   balanceWeight: '800' as const,
-  titleSize: 15,
-  titleWeight: '600' as const,
-  bodySize: 13,
-  metaSize: 12,
-  actionSize: 16,
+  titleSize: 17,
+  titleWeight: '700' as const,
+  bodySize: 15,
+  metaSize: 14,
+  actionSize: 17,
   actionWeight: '700' as const,
 } as const;
 
@@ -20,7 +20,7 @@ export const spacing = {
 
 export const radius = {
   icon: 20,
-  action: 18,
+  action: 20,
 } as const;
 
 export const monthDonutSize = 220;

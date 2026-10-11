@@ -5,5 +5,5 @@
 // active explícitamente.
 export const ACCOUNTS_UI = false as const;
 export const TRANSFERS_UI = false as const;
-/** Datos de ejemplo (1 mes) para ver gráficas. Poner false para quitarlos. */
-export const MOCK_DATA = false as const;
+/** Datos de ejemplo (6 meses) para revisar la UI sin registrar movimientos a mano. */
+export const MOCK_DATA = true as const;

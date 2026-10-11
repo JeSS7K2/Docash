@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { spacing, type, type Palette } from '../../theme';
+import { spacing, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
@@ -8,11 +8,11 @@ export const makeStyles = (c: Palette) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.xl,
-      paddingTop: spacing.md,
-      minHeight: 42,
+      paddingTop: spacing.lg,
+      minHeight: 60,
     },
-    title: { fontSize: 20, color: c.ink, fontWeight: '800' },
-    settingsText: { fontSize: type.metaSize, fontWeight: '600' },
+    rootFlush: { paddingHorizontal: 0 },
+    title: { fontSize: 34, lineHeight: 40, color: c.ink, fontWeight: '800' },
     iconButton: {
       minWidth: 44,
       minHeight: 44,

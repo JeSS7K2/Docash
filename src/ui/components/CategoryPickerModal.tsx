@@ -62,6 +62,33 @@ export default function CategoryPickerModal({
   const filteredCategories = categories.filter(category =>
     labelFor(category).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   );
+  const renderCategory = (category: Category) => {
+    const selected = selectedId === category.id;
+    return (
+      <Pressable
+        key={category.id}
+        testID={`category-option-${category.id}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        style={[styles.card, { borderColor: palette.border }, selected && { borderColor: palette.primary }]}
+        onPress={() => {
+          onSelect(category.id);
+          onClose();
+        }}>
+        <View style={[styles.cardIcon, { backgroundColor: selected ? palette.primarySoft : palette.faint }]}>
+          <CategoryIcon
+            id={category.id}
+            icon={category.icon}
+            color={selected ? palette.primary : palette.ink}
+            size={24}
+          />
+        </View>
+        <Text style={[styles.cardText, { color: palette.ink }]} numberOfLines={1}>
+          {labelFor(category)}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <SheetScaffold
@@ -77,6 +104,8 @@ export default function CategoryPickerModal({
       accent={accent}
       accentSoft={accentSoft}
       presentation={presentation}
+      pageHeaderMode="close"
+      showSheetTitle={false}
       fixedContent={
         !creating ? (
           <View style={styles.searchWrap}>
@@ -140,31 +169,14 @@ export default function CategoryPickerModal({
         </View>
       ) : (
         <View style={styles.body}>
-          {filteredCategories.length ? filteredCategories.map(category => {
-            const selected = selectedId === category.id;
-            return (
-              <Pressable
-                key={category.id}
-                testID={`category-option-${category.id}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[styles.row, { backgroundColor: selected ? palette.ink : palette.faint }]}
-                onPress={() => {
-                  onSelect(category.id);
-                  onClose();
-                }}>
-                <CategoryIcon
-                  id={category.id}
-                  icon={category.icon}
-                  color={selected ? palette.paper : palette.ink}
-                  size={22}
-                />
-                <Text style={[styles.rowText, { color: selected ? palette.paper : palette.ink }]}>
-                  {labelFor(category)}
-                </Text>
-              </Pressable>
-            );
-          }) : (
+          {filteredCategories.length ? (
+            <>
+              <Text style={[styles.sectionTitle, { color: palette.ink }]}>{t('entry.popularCategories')}</Text>
+              <View style={styles.grid}>{filteredCategories.slice(0, 3).map(renderCategory)}</View>
+              <Text style={[styles.sectionTitle, { color: palette.ink }]}>{t('entry.allCategories')}</Text>
+              <View style={styles.grid}>{filteredCategories.slice(3).map(renderCategory)}</View>
+            </>
+          ) : (
             <Text style={[styles.empty, { color: palette.muted }]}>{t('entry.noCategoriesFound')}</Text>
           )}
           <Pressable
@@ -192,6 +204,20 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   rowText: { fontSize: type.bodySize, fontWeight: '600' },
+  sectionTitle: { fontSize: type.bodySize, fontWeight: '800', marginTop: spacing.md, marginBottom: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  card: {
+    width: '31.5%',
+    minHeight: 108,
+    borderWidth: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    gap: spacing.sm,
+  },
+  cardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  cardText: { fontSize: type.metaSize, fontWeight: '600' },
   empty: { textAlign: 'center', paddingVertical: spacing.xl, fontSize: type.bodySize },
   addButton: {
     minHeight: 48,

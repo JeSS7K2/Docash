@@ -9,6 +9,9 @@ import Budget from './models/Budget';
 import RecurringRule from './models/RecurringRule';
 import Goal from './models/Goal';
 import User from './models/User';
+import StreakSettings from './models/StreakSettings';
+import DailyReview from './models/DailyReview';
+import MilestoneUnlock from './models/MilestoneUnlock';
 
 /**
  * DB en memoria para Jest. Nunca importar database.ts (SQLite nativo) en tests.
@@ -24,6 +27,6 @@ export function createTestDatabase(): Database {
   });
   return new Database({
     adapter,
-    modelClasses: [User, Account, Category, Transaction, TransferRecord, Budget, RecurringRule, Goal],
+    modelClasses: [User, Account, Category, Transaction, TransferRecord, Budget, RecurringRule, Goal, StreakSettings, DailyReview, MilestoneUnlock],
   });
 }

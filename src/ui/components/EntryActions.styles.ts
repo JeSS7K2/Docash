@@ -3,21 +3,17 @@ import { radius, spacing, type, type Palette } from '../../theme';
 
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    root: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+    root: { paddingVertical: spacing.md },
     action: {
-      flex: 1,
       borderRadius: radius.action,
-      paddingVertical: 10,
+      paddingVertical: spacing.lg,
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'center',
       gap: spacing.md,
-      minHeight: 46,
+      minHeight: 62,
+      backgroundColor: c.primary,
     },
-    expense: { backgroundColor: c.primary },
-    income: { backgroundColor: c.primary },
-    label: { fontSize: type.bodySize, fontWeight: type.actionWeight },
-    symbol: { fontSize: 18, fontWeight: '700' },
-    expenseText: { color: '#FFFFFF' },
-    incomeText: { color: '#FFFFFF' },
+    plusCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+    label: { color: '#FFFFFF', fontSize: 21, fontWeight: type.actionWeight },
   });
