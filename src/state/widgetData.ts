@@ -1,23 +1,72 @@
 import { MMKV } from 'react-native-mmkv';
 import { formatCents } from '../utils/currency';
 import { baseToDisplayCents } from '../utils/fx';
-import { useSettings, type Currency, type Locale } from './useSettings';
+import type { Currency, Locale } from './useSettings';
 
-// Snapshot para el widget Android. El widget corre en un contexto headless y
-// no puede tocar SQLite con fiabilidad: guardamos el balance ya calculado.
+// Snapshot para los widgets Android. El widget corre en un contexto headless
+// que NO puede tocar SQLite con fiabilidad: la app guarda aquí lo ya calculado
+// y el widget solo lee MMKV (síncrono).
 const store = new MMKV({ id: 'docash-widget' });
 const KEY = 'snapshot';
 
-interface WidgetSnapshot {
+export interface WidgetBudgetDTO {
+  categoryId: string;
+  name: string;
+  spentCents: number;
+  limitCents: number;
+  period: string;
+}
+
+export interface WidgetGoalDTO {
+  name: string;
+  targetCents: number;
+  progressCents: number;
+}
+
+export interface WidgetStreakDayDTO {
+  label: string;
+  status: string;
+}
+
+export interface WidgetStreakDTO {
+  enabled: boolean;
+  currentStreak: number;
+  bestStreak: number;
+  todayConfirmed: boolean;
+  week: WidgetStreakDayDTO[];
+}
+
+export interface WidgetFlowPointDTO {
+  dayMs: number;
+  incomeCents: number;
+  expenseCents: number;
+}
+
+export interface WidgetCategoryDTO {
+  id: string;
+  name: string;
+  kind: string;
+}
+
+export interface WidgetSnapshot {
   balanceCents: number;
   currency: Currency;
   rate: number;
   locale: Locale;
+  showBalance: boolean;
+  /** Tema activo (para que el widget combine con la app). */
+  dark: boolean;
+  budgets: WidgetBudgetDTO[];
+  goals: WidgetGoalDTO[];
+  streak: WidgetStreakDTO | null;
+  /** Serie diaria del último año para el gráfico del widget. */
+  flow: WidgetFlowPointDTO[];
+  categories: WidgetCategoryDTO[];
+  /** Historial de notas para el "comentario" rápido. */
+  notes: string[];
 }
 
-export function saveWidgetSnapshot(balanceCents: number): void {
-  const { currency, exchangeRate, locale } = useSettings.getState();
-  const snapshot: WidgetSnapshot = { balanceCents, currency, rate: exchangeRate, locale };
+export function saveWidgetSnapshot(snapshot: WidgetSnapshot): void {
   store.set(KEY, JSON.stringify(snapshot));
 }
 
@@ -33,13 +82,22 @@ export function readWidgetSnapshot(): WidgetSnapshot | null {
   }
 }
 
+export function formatWidgetMoney(
+  baseCents: number,
+  currency: Currency,
+  rate: number,
+  locale: Locale,
+): string {
+  return formatCents(
+    baseToDisplayCents(baseCents, currency, rate),
+    currency,
+    locale === 'es' ? 'es-ES' : 'en-US',
+  );
+}
+
 export function formatWidgetBalance(snapshot: WidgetSnapshot | null): string {
   if (!snapshot) {
     return '—';
   }
-  return formatCents(
-    baseToDisplayCents(snapshot.balanceCents, snapshot.currency, snapshot.rate),
-    snapshot.currency,
-    snapshot.locale === 'es' ? 'es-ES' : 'en-US',
-  );
+  return formatWidgetMoney(snapshot.balanceCents, snapshot.currency, snapshot.rate, snapshot.locale);
 }

@@ -5,11 +5,11 @@ export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     page: { flex: 1 },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: c.overlay },
-    pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
-    pageTitle: { fontSize: 34, lineHeight: 40, fontWeight: '800' },
-    pageBack: { fontSize: 18, fontWeight: '700' },
-    pageHeaderSlot: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-    pageScroll: { paddingBottom: 32 },
+    pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.sm },
+    pageTitle: { fontSize: 20, lineHeight: 24, fontWeight: '800' },
+    pageBack: { fontSize: 15, fontWeight: '700' },
+    pageHeaderSlot: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    pageScroll: { paddingBottom: 16 },
     content: {
       backgroundColor: c.paper,
       borderTopLeftRadius: 24,

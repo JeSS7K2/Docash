@@ -24,10 +24,16 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="docash" />
+        </intent-filter>
       </activity>
 
       <receiver
-        android:name=".widget.DocashWidget"
+        android:name=".widget.SlideshowWidget"
         android:exported="false"
         android:label="@string/app_name">
         <intent-filter>
@@ -36,7 +42,20 @@
         </intent-filter>
         <meta-data
           android:name="android.appwidget.provider"
-          android:resource="@xml/widgetprovider_docashwidget" />
+          android:resource="@xml/widgetprovider_slideshow" />
+      </receiver>
+
+      <receiver
+        android:name=".widget.QuickAddWidget"
+        android:exported="false"
+        android:label="@string/app_name">
+        <intent-filter>
+          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+          <action android:name="com.docash.WIDGET_CLICK" />
+        </intent-filter>
+        <meta-data
+          android:name="android.appwidget.provider"
+          android:resource="@xml/widgetprovider_quickadd" />
       </receiver>
 
       <service

@@ -9,6 +9,7 @@ import { Q } from '@nozbe/watermelondb';
 import { createTransaction, deleteTransaction, updateTransaction, type EntryKind } from '../../db/operations';
 import { createCategory } from '../../db/categories';
 import { toCents } from '../../utils/currency';
+import { normalizeBuffer } from '../../utils/amountBuffer';
 import { useTranslation, type TranslationKey } from '../../i18n';
 import { useEntry } from '../../state/useEntry';
 import { useSettings } from '../../state/useSettings';
@@ -35,6 +36,9 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
   const palette = usePalette();
   const { t, locale } = useTranslation();
   const currency = useSettings(s => s.currency);
+  const noteHistory = useSettings(s => s.noteHistory);
+  const addNoteToHistory = useSettings(s => s.addNoteToHistory);
+  const clearNoteHistory = useSettings(s => s.clearNoteHistory);
   const {
     open,
     kind,
@@ -51,6 +55,7 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
   const { showError, showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [accountName, setAccountName] = useState('');
+  const [amountText, setAmountText] = useState('0');
   const [occurredOn, setOccurredOn] = useState(() => Date.now());
   const [iosDatePickerOpen, setIosDatePickerOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -58,11 +63,18 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
 
   useEffect(() => {
     if (open) {
+      setAmountText(buffer);
       setSelectedCategoryId(editingId ? editingCategoryId : null);
       setOccurredOn(editingId && editingOccurredOn ? editingOccurredOn : Date.now());
       setIosDatePickerOpen(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingCategoryId, editingId, editingOccurredOn, kind, open]);
+
+  const handleClose = () => {
+    setBuffer(amountText);
+    closeSheet();
+  };
 
   useEffect(() => {
     if (!open) {
@@ -87,7 +99,7 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
 
   const commit = async (categoryId: string) => {
     try {
-      const amountCents = toCents(buffer);
+      const amountCents = toCents(normalizeBuffer(amountText));
       if (editingId) {
         await updateTransaction(db, editingId, { amountCents, categoryId, note, occurredOn });
       } else {
@@ -101,6 +113,7 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
       }
       playSound(editingId ? 'confirm' : kind);
       Vibration.vibrate([0, 25, 50, 25]);
+      addNoteToHistory(note);
       closeSheet({ preserveDraft: false });
     } catch (error) {
       playSound('error');
@@ -192,7 +205,7 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
     <>
       <SheetScaffold
         isOpen={open}
-        onClose={closeSheet}
+        onClose={handleClose}
         title={title}
         accent={accent}
         accentSoft={accentSoft}
@@ -212,7 +225,7 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
                       styles.kindOption,
                       selected && (option === 'expense' ? styles.kindOptionExpense : styles.kindOptionIncome),
                     ]}
-                  onPress={() => switchKind(option)}>
+                  onPress={() => { setBuffer(amountText); switchKind(option); }}>
                     <Text style={[styles.kindOptionText, selected && styles.kindOptionSelectedText]}>
                     {t(option === 'expense' ? 'entry.expense' : 'entry.income')}
                   </Text>
@@ -226,8 +239,8 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
           <TextInput
             testID="entry-amount"
             style={styles.amountInput}
-            value={buffer}
-            onChangeText={setBuffer}
+            value={amountText}
+            onChangeText={setAmountText}
             keyboardType="decimal-pad"
             autoFocus={open && !pickerOpen}
             selectTextOnFocus={false}
@@ -289,6 +302,28 @@ export default function EntrySheet({ db, presentation = 'sheet', onOpenRecurring
             maxLength={280}
           />
         </AnimatedBlock>
+        {noteHistory.length > 0 ? (
+          <AnimatedBlock delay={225}>
+            <Box style={styles.noteHistoryRow}>
+              {noteHistory.map(item => (
+                <Pressable
+                  key={item}
+                  accessibilityRole="button"
+                  style={styles.noteHistoryChip}
+                  onPress={() => setNote(item)}>
+                  <Text style={styles.noteHistoryChipText} numberOfLines={1}>{item}</Text>
+                </Pressable>
+              ))}
+              <Pressable
+                testID="entry-clear-notes"
+                accessibilityRole="button"
+                style={styles.noteClearButton}
+                onPress={clearNoteHistory}>
+                <Text style={styles.noteClearText}>{t('entry.clearNotes')}</Text>
+              </Pressable>
+            </Box>
+          </AnimatedBlock>
+        ) : null}
         <AnimatedBlock delay={255}>
           <Pressable
             testID="entry-repeat"

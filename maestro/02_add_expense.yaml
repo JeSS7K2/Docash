@@ -5,12 +5,11 @@ appId: com.docash
 - extendedWaitUntil:
     visible: 'Current balance'
     timeout: 60000
-- tapOn: 'Expense'
-- assertVisible: 'Note (optional)'
-- tapOn: '1'
-- tapOn: '0'
-- tapOn: '0'
-- assertVisible: '\$100\.00'
+- tapOn:
+    id: 'fab-expense'
+- tapOn:
+    id: 'entry-amount'
+- inputText: '100'
 - tapOn:
     id: 'category-select'
 - tapOn: 'Food'
@@ -19,4 +18,7 @@ appId: com.docash
 - extendedWaitUntil:
     visible: '-\$100\.00'
     timeout: 10000
-- assertVisible: 'Food'
+- scrollUntilVisible:
+    element:
+      text: 'Food'
+    direction: DOWN

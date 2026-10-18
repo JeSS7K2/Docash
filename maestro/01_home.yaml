@@ -5,6 +5,6 @@ appId: com.docash
 - extendedWaitUntil:
     visible: 'Current balance'
     timeout: 60000
-- assertVisible: 'Expense'
-- assertVisible: 'Income'
+- assertVisible: 'Add transaction'
 - assertVisible: 'Recurring'
+- assertVisible: 'Plan'

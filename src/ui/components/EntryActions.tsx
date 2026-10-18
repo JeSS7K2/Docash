@@ -23,7 +23,7 @@ export default function EntryActions({ onExpense = noop }: EntryActionsProps) {
         accessibilityLabel={t('movement.register')}
         style={styles.action}
         onPress={onExpense}>
-        <Box style={styles.plusCircle}><Plus width={28} height={28} color="#0D70E8" strokeWidth={3} /></Box>
+        <Box style={styles.plusCircle}><Plus width={20} height={20} color="#0D70E8" strokeWidth={3} /></Box>
         <Text style={styles.label}>{t('movement.register')}</Text>
       </Pressable>
     </Box>

@@ -4,9 +4,9 @@ import { spacing, type, type Palette } from '../../theme';
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     root: { alignItems: 'flex-start', paddingTop: spacing.xs },
-    heroRoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 0, minHeight: 108 },
+    heroRoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 0, minHeight: 84 },
     heroContent: { flex: 1 },
-    label: { fontSize: 18, color: c.muted },
+    label: { fontSize: 13, color: c.muted },
     balance: {
       fontSize: type.balanceSize,
       fontWeight: type.balanceWeight,
@@ -20,7 +20,7 @@ export const makeStyles = (c: Palette) =>
       marginTop: spacing.sm,
     },
     heroAccount: { marginTop: 0, gap: spacing.md, maxWidth: '48%' },
-    accountName: { fontSize: 16, color: c.muted },
+    accountName: { fontSize: 14, color: c.muted },
     heroText: { color: '#FFFFFF' },
     heroMuted: { color: '#E1E7FF' },
   });

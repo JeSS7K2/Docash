@@ -16,5 +16,5 @@ appId: com.docash
       id: 'recurring-kind-expense'
     timeout: 10000
 - tapOn:
-    id: 'recurring-kind-expense'
-- assertVisible: 'Food'
+    id: 'recurring-category'
+- tapOn: 'Food'

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
@@ -28,23 +29,30 @@ import { runDueRecurring } from '../db/recurring';
 import { activateStreaks, getStreakState, type StreakState } from '../db/streaks';
 import { runNotificationChecks, syncScheduledNotifications } from '../notifications/engine';
 import { playSound } from '../services/sound';
-import { saveWidgetSnapshot } from '../state/widgetData';
-import { DocashWidget } from '../widgets/DocashWidget';
+import { saveWidgetSnapshot, type WidgetSnapshot } from '../state/widgetData';
+import { buildWidgetSnapshot } from '../widgets/build-snapshot';
+import { SlideshowWidget } from '../widgets/SlideshowWidget';
+import { QuickAddWidget } from '../widgets/QuickAddWidget';
 import { labelForPeriod, rangeForPeriod, shiftAnchor, type EpochRange, type PeriodKind } from '../utils/dateRange';
+import { buildDailyFlow, FLOW_RANGES, type FlowRange } from '../utils/flow';
 import { useEntry } from '../state/useEntry';
+import { useQuickAdd } from '../state/useQuickAdd';
 import { useFilters } from '../state/useFilters';
 import { useSettings } from '../state/useSettings';
 import { useTranslation, type TranslationKey } from '../i18n';
 import { useMoney } from '../state/useMoney';
-import { usePalette, useThemedStyles } from '../theme';
+import { usePalette, useThemedStyles, useThemeName, spacing } from '../theme';
 import BalanceHeader from './components/BalanceHeader';
 import BudgetsSheet from './components/BudgetsSheet';
 import EntryActions from './components/EntryActions';
 import EntrySheet from './components/EntrySheet';
+import QuickAddSheet from './components/QuickAddSheet';
 import NotificationsSheet from './components/NotificationsSheet';
 import PeriodFilter from './components/PeriodFilter';
 import RecurringSheet from './components/RecurringSheet';
 import StreakCard from './components/StreakCard';
+import FlowChart from './components/FlowChart';
+import HomeCarousel, { type CarouselSlide } from './components/HomeCarousel';
 import StreakProgressSheet from './components/StreakProgressSheet';
 import StreakReviewSheet from './components/StreakReviewSheet';
 import StreakSettingsSheet from './components/StreakSettingsSheet';
@@ -63,16 +71,21 @@ type MainTab = 'home' | 'movements' | 'plan' | 'recurring';
 type MovementKind = 'all' | 'income' | 'expense';
 
 /** Actualiza el widget si está instalado; no requiere que exista en el launcher. */
-function requestWidgetUpdateAdapter(): void {
+function requestWidgetUpdateAdapter(snapshot: WidgetSnapshot): void {
   requestWidgetUpdate({
-    widgetName: 'DocashWidget',
-    renderWidget: () => <DocashWidget />,
+    widgetName: 'SlideshowWidget',
+    renderWidget: info => <SlideshowWidget snapshot={snapshot} widgetId={info.widgetId} width={info.width} />,
+  }).catch(() => {});
+  requestWidgetUpdate({
+    widgetName: 'QuickAddWidget',
+    renderWidget: () => <QuickAddWidget snapshot={snapshot} />,
   }).catch(() => {});
 }
 
 export default function HomeScreen({ db = database }: { db?: Database }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
+  const themeName = useThemeName();
   const money = useMoney();
   const { t, locale } = useTranslation();
   const { showError } = useToast();
@@ -100,6 +113,9 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const [hasBudget, setHasBudget] = useState(false);
   const [earliestTransactionDate, setEarliestTransactionDate] = useState<number | null>(null);
   const [rows, setRows] = useState<TxRowData[]>([]);
+  const [allTxs, setAllTxs] = useState<{ occurredOn: number; amountCents: number; kind: string }[]>([]);
+  const [flowRange, setFlowRange] = useState<FlowRange>('1M');
+  const { width: windowWidth } = useWindowDimensions();
   const tabProgress = useSharedValue(1);
   const hasRenderedTabs = useRef(false);
   const tabAnimatedStyle = useAnimatedStyle(() => ({
@@ -112,9 +128,14 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
   const setPeriod = useFilters(s => s.setPeriod);
   const setAnchorMs = useFilters(s => s.setAnchorMs);
   const entryOpen = useEntry(s => s.open);
+  const quickAddOpen = useQuickAdd(s => s.open);
   const openSheet = useEntry(s => s.openSheet);
   const openEdit = useEntry(s => s.openEdit);
   const currentRange = useMemo(() => rangeForPeriod(period, anchorMs), [period, anchorMs]);
+  const flowPoints = useMemo(
+    () => buildDailyFlow(flowRange, allTxs, locale, Date.now()),
+    [flowRange, allTxs, locale],
+  );
 
   useEffect(() => {
     if (!installedAt) {
@@ -139,11 +160,12 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
         setReady(true);
         return;
       }
-      const [nextBalance, txs, categories, earliestDate] = await Promise.all([
+      const [nextBalance, txs, categories, earliestDate, allTransactions] = await Promise.all([
         getAccountBalance(db, account),
         fetchTransactionsInRange(db, activeRange),
         db.get<Category>('categories').query().fetch(),
         getEarliestTransactionDate(db),
+        fetchTransactionsInRange(db, null),
       ]);
       if (cancelled) {
         return;
@@ -152,10 +174,15 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       setAccountName(account.name);
       setBalance(nextBalance);
       setEarliestTransactionDate(earliestDate);
+      setAllTxs(allTransactions.map(tx => ({ occurredOn: tx.occurredOn, amountCents: tx.amountCents, kind: tx.kind })));
       setIncomeTotal(txs.reduce((sum, tx) => sum + (tx.kind === 'income' ? tx.amountCents : 0), 0));
       setExpenseTotal(txs.reduce((sum, tx) => sum + (tx.kind === 'expense' ? tx.amountCents : 0), 0));
-      saveWidgetSnapshot(nextBalance);
-      requestWidgetUpdateAdapter();
+      buildWidgetSnapshot(db, themeName === 'dark')
+        .then(snapshot => {
+          saveWidgetSnapshot(snapshot);
+          requestWidgetUpdateAdapter(snapshot);
+        })
+        .catch(error => showError(error, 'errors.generic'));
       const byId = new Map(categories.map(category => [category.id, category]));
       setRows(
         txs.slice(0, 100).map(tx => {
@@ -195,7 +222,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [db, period, anchorMs, t, locale, showError]);
+  }, [db, period, anchorMs, t, locale, showError, themeName]);
 
   useEffect(() => {
     const subscription = db.get<Budget>('budgets').query().observe().subscribe(budgets => {
@@ -219,7 +246,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
     ? t('period.allTime')
     : labelForPeriod(period, anchorMs, locale === 'es' ? 'es-ES' : 'en-US');
   // Las hojas de racha son Actionsheets: Inicio debe permanecer visible debajo del backdrop.
-  const routeOpen = entryOpen || settingsOpen || notificationsOpen;
+  const routeOpen = entryOpen || settingsOpen || notificationsOpen || quickAddOpen;
 
   const refreshStreak = useCallback(async () => {
     try {
@@ -289,6 +316,79 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
     return <SafeAreaView style={styles.center}><ActivityIndicator size="large" color={palette.primary} /></SafeAreaView>;
   }
 
+  const carouselWidth = Math.max(0, windowWidth - spacing.xl * 2);
+  const chartWidth = carouselWidth - spacing.lg * 2;
+  const carouselSlides: CarouselSlide[] = [
+    {
+      key: 'flow',
+      node: (
+        <View style={styles.flowCard}>
+          <View style={styles.flowHeader}>
+            <Text style={styles.flowTitle}>{t('home.flowTitle')}</Text>
+            <View style={styles.flowLegend}>
+              <View style={[styles.flowLegendDot, { backgroundColor: palette.income }]} />
+              <Text style={styles.flowLegendText}>{t('home.monthIncome')}</Text>
+              <View style={[styles.flowLegendDot, { backgroundColor: palette.expense, marginLeft: spacing.md }]} />
+              <Text style={styles.flowLegendText}>{t('home.monthExpense')}</Text>
+            </View>
+          </View>
+          <FlowChart points={flowPoints} width={chartWidth} height={64} />
+          <View style={styles.flowChips}>
+            {FLOW_RANGES.map(r => {
+              const active = flowRange === r;
+              return (
+                <Pressable
+                  key={r}
+                  testID={`flow-range-${r}`}
+                  style={[styles.flowChip, active && styles.flowChipActive]}
+                  onPress={() => setFlowRange(r)}>
+                  <Text style={[styles.flowChipText, active && styles.flowChipTextActive]}>{r}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ),
+    },
+    {
+      key: 'plan',
+      node: (
+        <View style={styles.slideCard}>
+          <Text style={styles.slideTitle}>{t('home.planPromptTitle')}</Text>
+          <Text style={styles.slideBody}>{t('home.planPromptBody', { amount: money(balance) })}</Text>
+          <Pressable style={styles.slideButton} onPress={() => setActiveTab('plan')}>
+            <Text style={styles.slideButtonText}>{hasBudget ? t('nav.plan') : t('home.createBudget')}</Text>
+          </Pressable>
+        </View>
+      ),
+    },
+    {
+      key: 'recurring',
+      node: (
+        <View style={styles.slideCard}>
+          <Text style={styles.slideTitle}>{t('recurring.emptyTitle')}</Text>
+          <Text style={styles.slideBody}>{t('recurring.emptyBody')}</Text>
+          <Pressable style={styles.slideButton} onPress={() => setActiveTab('recurring')}>
+            <Text style={styles.slideButtonText}>{t('recurring.title')}</Text>
+          </Pressable>
+        </View>
+      ),
+    },
+  ];
+  if (streakState) {
+    carouselSlides.push({
+      key: 'streak',
+      node: (
+        <StreakCard
+          state={streakState}
+          onActivate={activateAndReview}
+          onReview={() => setStreakReviewOpen(true)}
+          onProgress={() => setStreakProgressOpen(true)}
+        />
+      ),
+    });
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       {!routeOpen ? (
@@ -304,42 +404,28 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
               <Text style={styles.monthLabel}>{periodLabel}</Text>
               <View style={styles.summaryRow}>
                 <View style={[styles.summaryCard, styles.incomeCard]}>
-                  <View style={styles.summaryIconIncome}><Icon name="ArrowDown" color={palette.income} size={25} strokeWidth={2.5} /></View>
+                  <View style={styles.summaryIconIncome}><Icon name="ArrowUp" color={palette.income} size={22} strokeWidth={2.5} /></View>
                   <View>
                     <Text style={styles.summaryLabel}>{t('home.monthIncome')}</Text>
-                    <Text style={[styles.summaryAmount, styles.incomeAmount]}>{`+${money(incomeTotal)}`}</Text>
+                    <Text style={[styles.summaryAmount, styles.incomeAmount]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(incomeTotal)}</Text>
                   </View>
                 </View>
                 <View style={[styles.summaryCard, styles.expenseCard]}>
-                  <View style={styles.summaryIconExpense}><Icon name="ArrowUp" color={palette.ink} size={25} strokeWidth={2.5} /></View>
+                  <View style={styles.summaryIconExpense}><Icon name="ArrowDown" color={palette.expense} size={22} strokeWidth={2.5} /></View>
                   <View>
                     <Text style={styles.summaryLabel}>{t('home.monthExpense')}</Text>
-                    <Text style={[styles.summaryAmount, styles.expenseAmount]}>{money(expenseTotal)}</Text>
+                    <Text style={[styles.summaryAmount, styles.expenseAmount]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(expenseTotal)}</Text>
                   </View>
                 </View>
               </View>
-              <StreakCard
-                state={streakState}
-                onActivate={activateAndReview}
-                onReview={() => setStreakReviewOpen(true)}
-                onProgress={() => setStreakProgressOpen(true)}
-              />
-              {!hasBudget ? <View style={styles.planPrompt}>
-                <View style={styles.planIcon}><Icon name="PieChart" color={palette.primary} size={32} strokeWidth={2.5} /></View>
-                <View style={styles.planCopy}>
-                  <Text style={styles.cardTitle}>{t('home.planPromptTitle')}</Text>
-                  <Text style={styles.helperText}>{t('home.planPromptBody', { amount: money(balance) })}</Text>
-                  <Pressable style={styles.budgetButton} onPress={() => setActiveTab('plan')}>
-                    <Text style={styles.budgetButtonText}>{t('home.createBudget')}</Text>
-                    <Icon name="ChevronRight" color={palette.primary} size={24} strokeWidth={2.5} />
-                  </Pressable>
-                </View>
-              </View> : null}
+              <View style={styles.carouselWrap}>
+                <HomeCarousel slides={carouselSlides} width={carouselWidth} height={172} />
+              </View>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{t('home.recent')}</Text>
                 <Pressable onPress={() => setActiveTab('movements')} style={styles.viewAllButton}>
                   <Text style={styles.viewAllText}>{t('home.viewAll')}</Text>
-                  <Icon name="ChevronRight" color={palette.primary} size={24} strokeWidth={2.5} />
+                  <Icon name="ChevronRight" color={palette.primary} size={20} strokeWidth={2.5} />
                 </Pressable>
               </View>
               {rows.slice(0, 3).map(row => (
@@ -387,6 +473,7 @@ export default function HomeScreen({ db = database }: { db?: Database }) {
       ) : null}
 
       <EntrySheet db={db} presentation="page" onOpenRecurring={setRecurringFromEntry} />
+      <QuickAddSheet db={db} />
       <SettingsSheet
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -543,7 +630,7 @@ function BottomTabs({ active, onChange }: { active: MainTab; onChange: (tab: Mai
           accessibilityState={{ selected: active === tab.id }}
           style={[styles.tabButton, active === tab.id && styles.tabButtonActive]}
           onPress={() => onChange(tab.id)}>
-          <Icon name={icons[tab.id]} color={active === tab.id ? palette.primary : palette.muted} size={25} strokeWidth={2.2} />
+          <Icon name={icons[tab.id]} color={active === tab.id ? palette.primary : palette.muted} size={22} strokeWidth={2.2} />
           <Text style={[styles.tabLabel, active === tab.id && styles.tabLabelActive]}>{tab.label}</Text>
         </Pressable>
       ))}

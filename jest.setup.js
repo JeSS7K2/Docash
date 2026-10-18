@@ -95,8 +95,12 @@ jest.mock('react-native-keychain', () => ({
 jest.mock('react-native-android-widget', () => ({
   FlexWidget: () => null,
   TextWidget: () => null,
+  SvgWidget: () => null,
+  IconWidget: () => null,
+  ImageWidget: () => null,
   registerWidgetTaskHandler: jest.fn(),
   requestWidgetUpdate: jest.fn(async () => undefined),
+  requestWidgetUpdateById: jest.fn(async () => undefined),
 }));
 
 // react-native-sound: sin nativo en Jest.
@@ -118,4 +122,21 @@ jest.mock('react-native-sound', () => {
   Sound.MAIN_BUNDLE = 'MAIN_BUNDLE';
   Sound.setCategory = () => {};
   return { __esModule: true, default: Sound };
+});
+
+// Skia (gráficas): sin nativo en Jest.
+jest.mock('@shopify/react-native-skia', () => {
+  const React = require('react');
+  const RN = require('react-native');
+  const noop = { moveTo() {}, cubicTo() {}, lineTo() {}, close() {}, addCircle() {} };
+  return {
+    Canvas: ({ children, ...rest }) => React.createElement(RN.View, rest, children),
+    Group: ({ children }) => children ?? null,
+    Path: () => null,
+    Rect: () => null,
+    Circle: () => null,
+    Line: () => null,
+    Skia: { Path: { Make: () => noop } },
+    vec: (x, y) => ({ x, y }),
+  };
 });

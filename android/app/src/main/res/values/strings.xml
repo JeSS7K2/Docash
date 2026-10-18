@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Docash</string>
-    <string name="widget_docash_description">Balance total de Docash</string>
+    <string name="widget_slideshow_description">Saldo, planes, rachas y gráfico (Docash)</string>
+    <string name="widget_quickadd_description">Registra ingresos y gastos rápido (Docash)</string>
 </resources>

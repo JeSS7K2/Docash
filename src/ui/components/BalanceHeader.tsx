@@ -26,16 +26,21 @@ export default function BalanceHeader({ balanceCents, accountName, accountId, va
         <Text style={[styles.label, variant === 'hero' && styles.heroText]}>
           {variant === 'hero' ? t('home.currentBalance') : t('balance.total')}
         </Text>
-        <Text style={[styles.balance, variant === 'hero' && styles.heroText]} testID="balance-total">
+        <Text
+          style={[styles.balance, variant === 'hero' && styles.heroText]}
+          testID="balance-total"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}>
           {money(balanceCents)}
         </Text>
       </Box>
       <Box style={[styles.account, variant === 'hero' && styles.heroAccount]}>
-        <AccountIcon id={accountId} color={variant === 'hero' ? '#FFFFFF' : palette.muted} size={variant === 'hero' ? 40 : 16} />
-        <Text style={[styles.accountName, variant === 'hero' && styles.heroMuted]} testID="account-name">
+        <AccountIcon id={accountId} color={variant === 'hero' ? '#FFFFFF' : palette.muted} size={variant === 'hero' ? 28 : 16} />
+        <Text style={[styles.accountName, variant === 'hero' && styles.heroMuted]} testID="account-name" numberOfLines={1}>
           {accountName}
         </Text>
-        {variant === 'hero' ? <ChevronRight width={28} height={28} color="#FFFFFF" strokeWidth={2} /> : null}
+        {variant === 'hero' ? <ChevronRight width={22} height={22} color="#FFFFFF" strokeWidth={2} /> : null}
       </Box>
     </Box>
   );

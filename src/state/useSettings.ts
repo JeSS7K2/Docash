@@ -30,6 +30,10 @@ interface SettingsState {
   inactivityDays: number;
   soundEnabled: boolean;
   soundKeypad: boolean;
+  /** Historial de notas usadas (para autocompletar), más reciente primero. */
+  noteHistory: string[];
+  /** Mostrar el saldo en el widget de Android. */
+  widgetShowBalance: boolean;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: ThemePreference) => void;
   setCurrency: (currency: Currency) => void;
@@ -49,6 +53,9 @@ interface SettingsState {
   setInactivityDays: (days: number) => void;
   setSoundEnabled: (value: boolean) => void;
   setSoundKeypad: (value: boolean) => void;
+  addNoteToHistory: (note: string) => void;
+  clearNoteHistory: () => void;
+  setWidgetShowBalance: (value: boolean) => void;
 }
 
 const storage = new MMKV({ id: 'docash-settings' });
@@ -85,6 +92,8 @@ export const useSettings = create<SettingsState>()(
       inactivityDays: 3,
       soundEnabled: true,
       soundKeypad: true,
+      noteHistory: [],
+      widgetShowBalance: true,
       setLocale: locale => set({ locale }),
       setTheme: theme => set({ theme }),
       setCurrency: currency => set({ currency }),
@@ -110,6 +119,18 @@ export const useSettings = create<SettingsState>()(
         set({ inactivityDays: Math.min(Math.max(Math.round(inactivityDays), 1), 365) }),
       setSoundEnabled: soundEnabled => set({ soundEnabled }),
       setSoundKeypad: soundKeypad => set({ soundKeypad }),
+      addNoteToHistory: note =>
+        set(state => {
+          const trimmed = note.trim();
+          if (!trimmed) {
+            return state;
+          }
+          return {
+            noteHistory: [trimmed, ...state.noteHistory.filter(n => n !== trimmed)].slice(0, 10),
+          };
+        }),
+      clearNoteHistory: () => set({ noteHistory: [] }),
+      setWidgetShowBalance: widgetShowBalance => set({ widgetShowBalance }),
     }),
     { name: 'docash-settings', storage: mmkvStorage },
   ),

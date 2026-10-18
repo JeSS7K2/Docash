@@ -42,7 +42,16 @@ export function observeTransactionsInRange(
   range: EpochRange | null,
   accountId?: string | null,
 ) {
-  return txQueryInRange(db, range, accountId).observe();
+  return txQueryInRange(db, range, accountId).observeWithColumns([
+    'amount_cents',
+    'amount_signed',
+    'category_id',
+    'note',
+    'occurred_on',
+    'kind',
+    'account_id',
+    'transfer_group_id',
+  ]);
 }
 
 /** Misma query que observeTransactionsInRange, one-shot (para listas/export). */

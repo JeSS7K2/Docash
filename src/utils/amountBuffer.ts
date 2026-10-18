@@ -31,7 +31,7 @@ export function normalizeBuffer(value: string): string {
   return raw.includes('.') ? `${intPart}.${decimals}` : intPart;
 }
 
-/** Convierte céntimos a buffer editable (8800 -> "88", 8850 -> "88.5"). */
+/** Convierte céntimos a buffer editable (8800 -> "88", 8850 -> "88.5", 8805 -> "88.05"). */
 export function centsToBuffer(cents: number): string {
   const abs = Math.abs(cents);
   const int = Math.floor(abs / 100);
@@ -39,8 +39,9 @@ export function centsToBuffer(cents: number): string {
   if (dec === 0) {
     return String(int);
   }
-  const decStr = String(dec).padStart(2, '0').replace(/0$/, '');
-  return `${int}.${decStr}`;
+  const decStr = String(dec).padStart(2, '0');
+  const trimmed = dec % 10 === 0 ? decStr.slice(0, 1) : decStr;
+  return `${int}.${trimmed}`;
 }
 
 export function applyKey(buffer: string, key: NumpadKey): string {

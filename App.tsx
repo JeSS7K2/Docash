@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, StyleSheet } from 'react-native';
+import { Linking, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GluestackUIProvider } from '@gluestack-ui/themed';
 import { gluestackUIConfig } from '@gluestack-ui/config';
@@ -7,6 +7,8 @@ import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import { database } from './src/db/database';
 import { useThemeName } from './src/theme';
 import { useSettings } from './src/state/useSettings';
+import { useQuickAdd } from './src/state/useQuickAdd';
+import type { EntryKind } from './src/db/operations';
 import HomeScreen from './src/ui/HomeScreen';
 import LockScreen from './src/ui/LockScreen';
 import { ToastProvider } from './src/ui/Toast';
@@ -21,6 +23,20 @@ function Root(): React.JSX.Element {
       setUnlocked(true);
     }
   }, [securityEnabled]);
+
+  // Deep link del widget: docash://add?kind=income|expense → abre DETALLES.
+  useEffect(() => {
+    const handle = (url: string | null) => {
+      if (!url) {
+        return;
+      }
+      const match = url.match(/kind=(income|expense)/);
+      useQuickAdd.getState().openWith((match?.[1] as EntryKind) ?? 'expense');
+    };
+    Linking.getInitialURL().then(handle).catch(() => {});
+    const sub = Linking.addEventListener('url', event => handle(event.url));
+    return () => sub.remove();
+  }, []);
 
   const locked = securityEnabled && !unlocked;
 
